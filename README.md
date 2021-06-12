@@ -16,5 +16,5 @@ This is an interactive powershell script that does the following:
  
  For elevated commands within the current user's context, I've found creating another script and having it called from the 
  current user's context was the more ideal solution here. Thus the main script is the GetWindowsAppInfoAndTroubleshoot.ps1 
- and the helper script is the GetAppsInfo.ps1. Both of these files must be in the same directory, but can located just about
- anywhere on the workstation.
+ and the helper script that runs in elevated mode is the GetAppsInfo.ps1. Both of these files must be in the same directory,
+ but can located just about anywhere on the workstation.
