@@ -2,7 +2,7 @@
 This is an interactive powershell script that does the following:
 1. Created a new directory on the current logged in user's desktop.
 2. In this directory, when the script is run, it creates 3 files that shows information about Windows Native Apps (UWP).
-3. User interaction:&nbsp;
+3. User interaction:<br />
    a. Uninstall and reinstall an app.<br />
    b. Install/reinstall an app without uninstalling.<br />
    c. Checks to see if app is installed for current user. <br />
