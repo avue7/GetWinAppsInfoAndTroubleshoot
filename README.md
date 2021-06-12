@@ -11,7 +11,7 @@ This is an interactive powershell script that does the following:
    (Options below will affect all users or new users)<br />
    e. Uninstall an app for all users on current workstation. <br />
    e. Check if app is staged at the provisioned OS level for new users on current workstation or computer. <br />
-   f. Stage an app at provisioned OS level for new users of current workstation or computer. (TODO) <br />
+   f. Stage an app at provisioned OS level for new users of current workstation or computer (TODO). <br />
    g. Uninstall/unstage an app for the provisioned OS level for new users. <br />
  
  For elevated commands within the current user's context, I've found creating another script and having it called from the 
