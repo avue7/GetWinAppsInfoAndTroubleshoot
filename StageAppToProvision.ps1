@@ -1,24 +1,56 @@
 ﻿###
-# GetAppsInfo.ps1
-#
-# @Description:
-# As I have not found a better way to run the main script in elevated mode, 
-# while in a normal user context, this was the only way I found. This is a 
-# helper script that is called from the main script GetWindowsAppInfoAndTroubleshoot.ps1.
-# It invokes the following functions to grab the list for provisioned apps and apps 
-# that are available to current user.
+# StageAppToProvision.ps1
 # 
-# @author:
+# This is a helper script that is run in elevated mode to stage an
+# app to the provisioned or OS level.
+#
+# @Author
 # Athit Vue
 # 
-# @date created:
-# 6/10/2021
-#
-# @last updated:
+# @Date
 # 6/11/2021
+#
+# @Last Updated
+# 6/12/2021
 ##
 
-################ FUNCTION DEFINITION #########################
+# Retrieving te passed in argument
+param($Arg1, $Arg2)
+
+# Set the argument to array variable
+$args = @($Arg1, $Arg2)
+
+######################### SELF-ELEVATE ###########################
+
+# BOILER PLATE CODE BLOCK:
+# Self-elevated mode. Basically checks to see if current user
+# is an admin. If not, then exit non-elevated and opens 
+# new process in elevatd mode with program selected at "FilePath".
+# If you have arguments passed to pass to this script from the 
+# calling script, declare and set them to the array variable 
+# "$args". 
+if (!
+	#current role
+	(New-Object Security.Principal.WindowsPrincipal(
+		[Security.Principal.WindowsIdentity]::GetCurrent()
+	#is admin?
+	)).IsInRole(
+		[Security.Principal.WindowsBuiltInRole]::Administrator
+	)
+) {
+	#elevate script and exit current non-elevated runtime
+	Start-Process `
+		-FilePath 'powershell' `
+		-ArgumentList (
+			#flatten to single array
+			'-File', $MyInvocation.MyCommand.Source, $args `
+			| %{ $_ }
+		) `
+		-Verb RunAs -PassThru -Wait
+	exit
+}
+
+###################### FUNCTION DEFINITIONS #####################
 
 ## 
 # OutputTextExist
@@ -57,8 +89,9 @@ Function GetCurUserWindowsAppInfoPath {
 # Gets provisioned app packages staged at OS level and outputs 
 # name to a text in the documents directory. 
 # 
-# @Param <string> OutputDirectoryPath The path of the output directory. 
-Function GetAppxProvisionPackageList ($OutputDirectoryPath) {
+# @Param <string> OutputDirectoryPath The path of the output directory.
+# @return <boolean> True or false base on success. 
+Function GetAppxProvisionPackageList {
     $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
     $FullFilePath = "$CurLogInUserWindowsAppsInfoPath\Provisioned_Apps_List.txt"
 
@@ -93,58 +126,45 @@ Function GetAppxProvisionPackageList ($OutputDirectoryPath) {
     return $true
 }
 
-## 
-# GetStagedAppXPackageList 
-#
-# Gets apps staged and available for current user
+##
+# AppAppToProvisionLevel
 # 
-# @Param <string> OutputDirectoryPath The path of the output directory. 
-Function GetStagedAppXPackageList ($OutputDirectoryPath) {
-    $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
-    $FullFilePath = "$CurLogInUserWindowsAppsInfoPath\Available_Apps_List.txt"
-
-    OutputTextExist $FullFilePath
-
-    $AppsArray = $null
-
-    try 
+# Adds/stage an app to the provisioned OS level for new user on current workstation.
+#
+# @param <string> AppXBundlePath The full path to the file of the appx bundle
+# @return <boolean> True or false base on success or not
+Function AddAppToProvisionLevel ($AppxBundlePath) {
+    try
     {
-        $AppsArray = Get-AppxPackage -AllUsers | Where-Object {$_.PackageUserInformation -like "*staged*"} | Select-Object -ExpandProperty Name
-    } 
+        Add-AppxProvisionedPackage -Online -SkipLicense -PackagePath $AppxBundlePath
+        return $True
+    }
     catch 
     {
-        return $false
+        return $False
     }
-
-    $Counter = 0
-
-    foreach ($Apps in $AppsArray) {
-        $Counter += 1  
-        # Append app name to text file
-        Write-Output $Apps | Out-File -FilePath $FullFilePath -Append
-    }
-    
-    # Display total count to text file 
-    Write-Output "" | Out-File -FilePath $FullFilePath -Append
-    Write-Output "Total count of apps installed under other users than  <$($CurLoggedInUser)>: <$($Counter)>`n" | Out-File -FilePath $FullFilePath -Append 
-    
-    Write-Host "Done GetStagedAppXPackageList`n"
-
-    return $true
 }
 
-#################### MAIN ############################
+##################### MAIN ##############################
 
 $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 
-$ErrorCounter = 0
+$AppName = $args[0]
+$AppxBundlePath = $args[1]
+
+# Set/stage app to provisioned OS level
+$Success1 = AddAppToProvisionLevel $AppxBundlePath
 
 # Get Provisioned (STAGED) apps in the OS level and output to text file. 
-$Success1 = GetAppxProvisionPackageList $OutputDirectoryPath
+$Success2 = GetAppxProvisionPackageList
 
-# Get staged apps available for current user 
-# PLEASE KEEP: Not need for our purpose yet....
-# $Success2 = GetStagedAppXPackageList $OutputDirectoryPath
+## Debug: to debug uncomment
+#$QuitResponse = ""
+#while($QuitResponse -ne "q") {
+#   Write-Host "quit or not: " -NoNewline
+#   $QuitResponse = Read-Host
+#}
+
 
 if (!($Success1) -and !($Success2)) {
     exit 3
@@ -153,11 +173,3 @@ if (!($Success1) -and !($Success2)) {
 } elseif (!($Success1)) {
     exit 1
 }
-
-# Uncomment below block for debugging 
-
-#$QuitResponse = ""
-#while($QuitResponse-ne "q") {
-#   Write-Host "quit or not: " -NoNewline
-#   $QuitResponse = Read-Host
-#}
