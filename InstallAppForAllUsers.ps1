@@ -1,8 +1,8 @@
-###
-# RemoveAppForAllUsers.ps1
+﻿###
+# InstallAppForAllUsers.ps1
 # 
-# This is a helper script that is run in elevated mode to remove an
-# app for all users.
+# This is a helper script that is run in elevated mode to install an
+# app for all current users of the workstation.
 #
 # @Author
 # Athit Vue
@@ -128,21 +128,21 @@ Function UpdateCurrentUserInstalledAppsLocalList {
 ################# SPECIFIC FUNCTION DEFINITIONS ###############
 
 ##
-# UninstallAppForAllCurrentUsers
+# InstallAppForAllCurrentUsers
 # 
-# Uninstalls an app for all current users. 
+# Installs/reinstall an app for all current users. 
 #
 # @param <string> AppName The name of the app to remove for all users. 
 # @return <boolean> True or false base on success or not.
-Function UninstallAppForAllCurrentUsers ($AppName) {
+Function InstallAppForAllCurrentUsers ($AppName) {
     try
     {
-        Get-AppXPackage -AllUsers -Name "*$($AppName)*" | Remove-AppxPackage -AllUsers
+        Get-AppxPackage -AllUser -Name "*$($AppName)*" | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register "$($_.InstallLocation)\AppXManifest.xml"}
         return $True
     }
     catch
     {
-        Write-Host "Error:: UninstallAppForAllCurrentUsers: $_.Exception.Message`n" -ForegroundColor Red
+        Write-Host "Error:: InstallAppForAllCurrentUsers: $_.Exception.Message`n" -ForegroundColor Red
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
         
@@ -156,7 +156,7 @@ $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 
 $AppName = $args[0]
 
-$Success1 = UninstallAppForAllCurrentUsers $AppName
+$Success1 = InstallAppForAllCurrentUsers $AppName
 $Success2 = UpdateCurrentUserInstalledAppsLocalList
 
 # Debug: to debug uncomment

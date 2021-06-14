@@ -348,6 +348,301 @@ Function GetAppFolderPath ($AppName) {
     }
 }
 
+## 
+# ProcessCommands
+#
+# Process the commands from user input by invoking other helper functions.
+# 
+# @param <string> CommandNumber The number input from the user.
+Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
+    switch ( $UserPrompt ) 
+    {
+
+        "1" {
+            Write-Host "     Enter the full name of the app to search for (enter `'q`' to go back): " -NoNewLine
+            $UserPrompt = Read-Host
+
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+                
+            Write-Host " "
+            # Write-Host "     Running command: `'Get-AppxPackage -User $CurLoggedInUser -Name `"*$($UserPrompt)*`"`'...`n" -ForegroundColor Cyan
+                
+            $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
+
+            if ($IsInstalled -eq $true) {
+                Write-Host "     Found! The app below matched <$($UserPrompt)> and is installed for current user <$($CurLoggedInUser)>:" -ForegroundColor Green
+
+                $RetVal = Get-AppxPackage -User $CurLoggedInUser -Name "*$($UserPrompt)*"
+                Write-Host "     $($RetVal)`n" -ForegroundColor Yellow
+            } elseif ($IsInstalled -eq $false) {
+                Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
+            }
+
+            break
+        }
+        "2" {
+            # If appx bundle dir does not exist, no point continuing.
+            if (!(Test-Path -Path $AppXBundleDir)) {
+                Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
+                Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
+                Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
+                Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
+                break
+            }
+
+            Write-Host "     Enter the full name of the app to install/re-install (enter `'q`' to go back): " -NoNewline
+            $UserPrompt = Read-Host
+            Write-Host " "
+                 
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+                
+            InstallAppForCurUser $UserPrompt
+
+            break
+        }
+        "3" {
+            Write-Host "     Enter the full name of the app you would like to uninstall (enter `'q`' to go back): " -NoNewline
+            $UserPrompt = Read-Host
+            Write-Host ""
+                
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+
+            $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
+
+            if ($IsInstalled -eq $true) {
+                $IsRemoved = RemoveAppForCurUser $UserPrompt
+            } else {
+                Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
+            }
+
+            break
+        }
+        "4" {
+            # If appx bundle dir does not exist, no point continuing.
+            if (!(Test-Path -Path $AppXBundleDir)) {
+                Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
+                Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
+                Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
+                Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
+                break
+            }
+
+            Write-Host "     Enter the full name of the app to uninstall and reinstall (enter `'q`' to go back): " -NoNewline
+            $UserPrompt = Read-Host 
+            Write-Host " "
+
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+
+            $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
+
+            if ($IsInstalled -eq $true) {
+                $IsRemoved = RemoveAppForCurUser $UserPrompt
+                            
+                if ($IsRemoved -eq $true) {
+                    InstallAppForCurUser $UserPrompt
+                } 
+
+                break
+            } else {
+                $InstallAppYN = ""
+
+                while (($InstallAppYN -ne "n") -or ($InstallAppYN -ne "N")) {
+                    Write-Host "     No installed app matched <$($UserPrompt)>. Would you like to install this app (y/n): " -ForegroundColor Red -NoNewline
+                    $InstallAppYN = Read-Host
+                    Write-Host ""
+                        
+                    if (($InstallAppYN -eq "y") -or ($InstallAppYN -eq "Y")) {
+                        InstallAppForCurUser $UserPrompt
+                        break
+                    } else {
+                        continue
+                    }
+                }
+            }
+        }
+        "5" {
+            Write-Host "     Enter the full app name you would like to search for (enter `'q`' to go back): " -NoNewline
+            $UserPrompt = Read-Host
+            Write-Host ""
+
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+
+            $AppExists = CheckIfAppExistAtProvision $UserPrompt
+            break
+        }
+        "6" {
+            $UserPrompt = ""
+
+            if (($SkipPromptFlag -eq $Null) -or ($SkipPromptFlag -ne $True)) {
+                Write-Host "     Enter the full app name you would like to add/stage at provisioned OS level: " -NoNewline 
+                $UserPrompt = Read-Host
+                Write-Host ""
+            } else {
+                $UserPrompt = $AppNameParam
+            }
+
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+
+            # Check if appx bundle exist. If not no point continuing.
+            $AppFolderPath = GetAppFolderPath $UserPrompt
+
+            if ($AppFolderPath -ne "NONE") {
+                $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File | Select-String -Pattern $UserPrompt
+
+                $AppXFullPath = "$($AppFolderPath)$($AppFilePath)"
+
+                # Get the current working directory so that we can call the correct file. 
+                $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+                $FilePath = "$CurrentWorkingDirectory\StageAppToProvision.ps1"
+
+                # Call the StageAppToProvision script using the ampersand to tell powershell 
+                # to execute the scriptblock expression. Without the ampersand, errors. Pass
+                # in the app name to search for from input as an argument. 
+                & $FilePath -Arg1 $UserPrompt -Arg2 $AppXFullPath | Out-Null
+
+                # After elevated script exits check exit code and handle here
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "     Successfully added the app to the provisioned OS level for new users.`n" -ForegroundColor Green
+                } elseif ($LASTEXITCODE -eq 1) {
+                    Write-Host "     Error: command failed to add app to provisioned OS level.`n" -ForegroundColor Red 
+                } elseif ($LASTEXITCODE -eq 2) {
+                    Write-Host "     Error: success at add/stage to provisioned OS level but failed to update local list.`n" -ForegroundColor Red
+                } elseif ($LASTEXITCODE -eq 3) {
+                    Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
+                } else {
+                    Write-Host "     Error: wow, you have not accounted for this error in the script dude!!!`n" -ForegroundColor Red
+                }
+            } else {
+                    Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
+                    Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
+                    Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link." -ForegroundColor Red
+                    break
+            }
+                
+            break
+        }
+        "7" {
+            Write-Host "     Enter the full app name to remove from the provisioned OS level: " -NoNewline 
+            $UserPrompt = Read-Host
+            Write-Host ""
+
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+
+            # Get the current working directory so that we can call the correct file. 
+            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+            $FilePath = "$CurrentWorkingDirectory\RemoveAppFromProvision.ps1"
+
+            # Call the RemoveAppFromProvision script using the ampersand to tell powershell 
+            # to execute the scriptblock expression. Without the ampersand, errors. Pass
+            # in the app name to search for from input as an argument. 
+            & $FilePath -Arg1 $UserPrompt | Out-Null
+
+            # After elevated script exits check exit code and handle here
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "     Successfully deleted the app from the provisioned OS level for new users.`n" -ForegroundColor Green
+            } elseif ($LASTEXITCODE -eq 1) {
+                Write-Host "     Error: command failed to package name for <$($UserPrompt)>.`n" -ForegroundColor Red 
+            } elseif ($LASTEXITCODE -eq 2) {
+                Write-Host "     Error: command failed to remove package from provisioned OS level.`n" -ForegroundColor Red
+            } elseif ($LASTEXITCODE -eq 3) {
+                Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
+            } elseif ($LASTEXITCODE -eq 4) {
+                Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
+            } else {
+                Write-Host "     Error: wow, something is wrong with the script iteself!!!`n" -ForegroundColor Red
+            }
+
+            break
+        }
+        "8" {       
+           # Get the current working directory so that we can call the correct file. 
+           $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+           $FilePath = "$CurrentWorkingDirectory\InstallAppForAllUsers.ps1"
+           
+           # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
+           # to execute the scriptblock expression. Without the ampersand, errors. Pass
+           # in the app name to search for from input as an argument. 
+           & $FilePath -Arg1 $AppNameParam | Out-Null
+           
+           ## After elevated script exits check exit code and handle here
+           if ($LASTEXITCODE -eq 0) {
+               Write-Host "     Successfully Install/Reinstall the app for all current users.`n" -ForegroundColor Green
+           } elseif ($LASTEXITCODE -eq 1) {
+               Write-Host "     Error: command failed to install/reinstall the app for all current users.`n" -ForegroundColor Red 
+           } elseif ($LASTEXITCODE -eq 2) {
+               Write-Host "     Error: command failed to update the local list of all installed apps for current user.`n" -ForegroundColor Red
+           } elseif ($LASTEXITCODE -eq 3) {
+               Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
+           } 
+           else {
+               Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
+           }
+           
+           break
+           break
+        }
+        "9" {
+            Write-Host "     Enter the full app name to uninstall for all users of this workstation: " -NoNewline 
+            $UserPrompt = Read-Host
+            Write-Host ""
+
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+
+            # Get the current working directory so that we can call the correct file. 
+            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+            $FilePath = "$CurrentWorkingDirectory\RemoveAppForAllUsers.ps1"
+
+            # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
+            # to execute the scriptblock expression. Without the ampersand, errors. Pass
+            # in the app name to search for from input as an argument. 
+            & $FilePath -Arg1 $UserPrompt | Out-Null
+
+            # After elevated script exits check exit code and handle here
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "     Successfully installed the app for all current users.`n" -ForegroundColor Green
+            } elseif ($LASTEXITCODE -eq 1) {
+                Write-Host "     Error: command failed to install the app for all current users.`n" -ForegroundColor Red 
+            } elseif ($LASTEXITCODE -eq 2) {
+                Write-Host "     Error: command failed to update the local list of all installed apps for current user.`n" -ForegroundColor Red
+            } elseif ($LASTEXITCODE -eq 3) {
+                Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
+            } 
+            else {
+                Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
+            }
+
+            break
+        }
+        default { break } 
+    }
+
+    return
+}
+
 ##
 # StartPrompt
 #
@@ -402,274 +697,46 @@ Function StartPrompt {
         Write-Host "new users." -ForegroundColor Yellow
         Write-Host "           Danger Zone: affects all new users of this workstation." -ForegroundColor Red
         Write-Host "     (8) - " -NoNewLine
+        Write-Host "Install" -NoNewline -ForegroundColor Yellow
+        Write-Host " an app for " -NoNewLine
+        Write-Host "all current users" -NoNewline -ForegroundColor Yellow
+        Write-Host " of this workstation " -NoNewLine
+        Write-Host "<$($env:COMPUTERNAME)>." -ForegroundColor Yellow
+        Write-Host "           Danger Zone: affects all current users of this workstation." -ForegroundColor Red 
+        Write-Host "     (9) - " -NoNewLine
         Write-Host "Uninstall" -NoNewline -ForegroundColor Yellow
         Write-Host " an app for " -NoNewLine
         Write-Host "all current users" -NoNewline -ForegroundColor Yellow
         Write-Host " of this workstation " -NoNewLine
         Write-Host "<$($env:COMPUTERNAME)>." -ForegroundColor Yellow
         Write-Host "           Danger Zone: affects all current users of this workstation." -ForegroundColor Red 
-        Write-Host "     (9) - Exit." 
+
+        Write-Host "     (q) - Enter q to exit." 
 
         Write-Host ""
         $UserPrompt = Read-Host -Prompt "     "
         Write-Host ""
-
-        switch ( $UserPrompt ) 
-        {
-            "1" {
-                Write-Host "     Enter the full name of the app to search for (enter `'q`' to go back): " -NoNewLine
-                $UserPrompt = Read-Host
-
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-                
-                Write-Host " "
-                # Write-Host "     Running command: `'Get-AppxPackage -User $CurLoggedInUser -Name `"*$($UserPrompt)*`"`'...`n" -ForegroundColor Cyan
-                
-                $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
-
-                if ($IsInstalled -eq $true) {
-                    Write-Host "     Found! The app below matched <$($UserPrompt)> and is installed for current user <$($CurLoggedInUser)>:" -ForegroundColor Green
-
-                    $RetVal = Get-AppxPackage -User $CurLoggedInUser -Name "*$($UserPrompt)*"
-                    Write-Host "     $($RetVal)`n" -ForegroundColor Yellow
-                } elseif ($IsInstalled -eq $false) {
-                    Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
-                }
-
-                break
-            }
-            "2" {
-                # If appx bundle dir does not exist, no point continuing.
-                if (!(Test-Path -Path $AppXBundleDir)) {
-                    Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
-                    Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
-                    Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
-                    Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
-                    break
-                }
-
-                Write-Host "     Enter the full name of the app to install/re-install (enter `'q`' to go back): " -NoNewline
-                $UserPrompt = Read-Host
-                Write-Host " "
-                 
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                   $UserPrompt = ""
-                   continue
-                }
-                
-                InstallAppForCurUser $UserPrompt
-
-                break
-            }
-            "3" {
-                Write-Host "     Enter the full name of the app you would like to uninstall (enter `'q`' to go back): " -NoNewline
-                $UserPrompt = Read-Host
-                Write-Host ""
-                
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-
-                $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
-
-                if ($IsInstalled -eq $true) {
-                    $IsRemoved = RemoveAppForCurUser $UserPrompt
-                } else {
-                    Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
-                }
-
-                break
-            }
-            "4" {
-                # If appx bundle dir does not exist, no point continuing.
-                if (!(Test-Path -Path $AppXBundleDir)) {
-                    Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
-                    Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
-                    Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
-                    Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
-                    break
-                }
-
-                Write-Host "     Enter the full name of the app to uninstall and reinstall (enter `'q`' to go back): " -NoNewline
-                $UserPrompt = Read-Host 
-                Write-Host " "
-
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-
-                $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
-
-                if ($IsInstalled -eq $true) {
-                    $IsRemoved = RemoveAppForCurUser $UserPrompt
-                            
-                    if ($IsRemoved -eq $true) {
-                        InstallAppForCurUser $UserPrompt
-                    } 
-
-                    break
-                } else {
-                    $InstallAppYN = ""
-
-                    while (($InstallAppYN -ne "n") -or ($InstallAppYN -ne "N")) {
-                        Write-Host "     No installed app matched <$($UserPrompt)>. Would you like to install this app (y/n): " -ForegroundColor Red -NoNewline
-                        $InstallAppYN = Read-Host
-                        Write-Host ""
-                        
-                        if (($InstallAppYN -eq "y") -or ($InstallAppYN -eq "Y")) {
-                            InstallAppForCurUser $UserPrompt
-                            break
-                        } else {
-                            continue
-                        }
-                    }
-                }
-            }
-            "5" {
-                Write-Host "     Enter the full app name you would like to search for (enter `'q`' to go back): " -NoNewline
-                $UserPrompt = Read-Host
-                Write-Host ""
-
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-
-                $AppExists = CheckIfAppExistAtProvision $UserPrompt
-                break
-            }
-            "6" {
-                Write-Host "     Enter the full app name you would like to add/stage at provisioned OS level: " -NoNewline 
-                $UserPrompt = Read-Host
-                Write-Host ""
-
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-
-                # Check if appx bundle exist. If not no point continuing.
-                $AppFolderPath = GetAppFolderPath $UserPrompt
-
-                if ($AppFolderPath -ne "NONE") {
-                    $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File | Select-String -Pattern $UserPrompt
-
-                    $AppXFullPath = "$($AppFolderPath)$($AppFilePath)"
-
-                    # Get the current working directory so that we can call the correct file. 
-                    $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
-                    $FilePath = "$CurrentWorkingDirectory\StageAppToProvision.ps1"
-
-                    # Call the StageAppToProvision script using the ampersand to tell powershell 
-                    # to execute the scriptblock expression. Without the ampersand, errors. Pass
-                    # in the app name to search for from input as an argument. 
-                    & $FilePath -Arg1 $UserPrompt -Arg2 $AppXFullPath | Out-Null
-
-                    # After elevated script exits check exit code and handle here
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-Host "     Successfully added the app to the provisioned OS level for new users.`n" -ForegroundColor Green
-                    } elseif ($LASTEXITCODE -eq 1) {
-                        Write-Host "     Error: command failed to add app to provisioned OS level.`n" -ForegroundColor Red 
-                    } elseif ($LASTEXITCODE -eq 2) {
-                        Write-Host "     Error: success at add/stage to provisioned OS level but failed to update local list.`n" -ForegroundColor Red
-                    } elseif ($LASTEXITCODE -eq 3) {
-                        Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
-                    } else {
-                        Write-Host "     Error: wow, you have not accounted for this error in the script dude!!!`n" -ForegroundColor Red
-                    }
-                } else {
-                        Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
-                        Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
-                        Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link." -ForegroundColor Red
-                        break
-                }
-                
-                break
-            }
-            "7" {
-                Write-Host "     Enter the full app name to remove from the provisioned OS level: " -NoNewline 
-                $UserPrompt = Read-Host
-                Write-Host ""
-
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-
-                # Get the current working directory so that we can call the correct file. 
-                $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
-                $FilePath = "$CurrentWorkingDirectory\RemoveAppFromProvision.ps1"
-
-                # Call the RemoveAppFromProvision script using the ampersand to tell powershell 
-                # to execute the scriptblock expression. Without the ampersand, errors. Pass
-                # in the app name to search for from input as an argument. 
-                & $FilePath -Arg1 $UserPrompt | Out-Null
-
-                # After elevated script exits check exit code and handle here
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "     Successfully deleted the app from the provisioned OS level for new users.`n" -ForegroundColor Green
-                } elseif ($LASTEXITCODE -eq 1) {
-                    Write-Host "     Error: command failed to package name for <$($UserPrompt)>.`n" -ForegroundColor Red 
-                } elseif ($LASTEXITCODE -eq 2) {
-                    Write-Host "     Error: command failed to remove package from provisioned OS level.`n" -ForegroundColor Red
-                } elseif ($LASTEXITCODE -eq 3) {
-                    Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
-                } elseif ($LASTEXITCODE -eq 4) {
-                    Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
-                } else {
-                    Write-Host "     Error: wow, something is wrong with the script iteself!!!`n" -ForegroundColor Red
-                }
-
-                break
-            }
-            "8" {
-                Write-Host "     Enter the full app name to uninstall for all users of this workstation: " -NoNewline 
-                $UserPrompt = Read-Host
-                Write-Host ""
-
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-
-                # Get the current working directory so that we can call the correct file. 
-                $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
-                $FilePath = "$CurrentWorkingDirectory\RemoveAppForAllUsers.ps1"
-
-                # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
-                # to execute the scriptblock expression. Without the ampersand, errors. Pass
-                # in the app name to search for from input as an argument. 
-                & $FilePath -Arg1 $UserPrompt | Out-Null
-
-                # After elevated script exits check exit code and handle here
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "     Successfully deleted the app for all current users.`n" -ForegroundColor Green
-                } elseif ($LASTEXITCODE -eq 1) {
-                    Write-Host "     Error: command failed to remove the app for all current users.`n" -ForegroundColor Red 
-                } elseif ($LASTEXITCODE -eq 2) {
-                    Write-Host "     Error: command failed to update the local list of all installed apps for current user.`n" -ForegroundColor Red
-                } elseif ($LASTEXITCODE -eq 3) {
-                    Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
-                } 
-                else {
-                    Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
-                }
-
-                break
-            }
-            "9" {
-                $UserPrompt = "q"
-                break
-            }
-            default { break } 
-
-        }
         
+        # TODO: instead of doing this we can fix the ProcessCommands 
+        # function to be run as a recursive function and recurse whatever
+        # commands we need to do as a workflow.
+        if (($UserPrompt -ne "q") -Or ($UserPrompt -ne "Q")){
+            if ($UserPrompt -eq "8") {
+                $UserPrompt = "6"
+                
+                Write-Host "     Enter the full app name to install/reinstall for all users of this workstation: " -NoNewline 
+                $AppNameParam = Read-Host
+                Write-Host ""
+
+                ProcessCommands $UserPrompt $True $AppNameParam
+                $UserPrompt = "8"
+                ProcessCommands $UserPrompt $False $AppNameParam
+                continue
+            } else {
+                ProcessCommands $UserPrompt
+                continue            
+            }
+        }
     }
 }
 
