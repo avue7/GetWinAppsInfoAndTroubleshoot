@@ -14,7 +14,7 @@
 # 6/1/2021 
 #
 # @Last Updated:
-# 6/11/2021
+# 6/14/2021
 ##
 
 ######################### GLOABL VARIABLES ############################
@@ -580,7 +580,7 @@ Function StartPrompt {
                     } elseif ($LASTEXITCODE -eq 3) {
                         Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
                     } else {
-                        Write-Host "     Error: wow, you have not accounted for this error in the script dude!!!" -ForegroundColor Red
+                        Write-Host "     Error: wow, you have not accounted for this error in the script dude!!!`n" -ForegroundColor Red
                     }
                 } else {
                         Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
@@ -605,7 +605,7 @@ Function StartPrompt {
                 $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
                 $FilePath = "$CurrentWorkingDirectory\RemoveAppFromProvision.ps1"
 
-                # Call the StageAppToProvision script using the ampersand to tell powershell 
+                # Call the RemoveAppFromProvision script using the ampersand to tell powershell 
                 # to execute the scriptblock expression. Without the ampersand, errors. Pass
                 # in the app name to search for from input as an argument. 
                 & $FilePath -Arg1 $UserPrompt | Out-Null
@@ -621,16 +621,45 @@ Function StartPrompt {
                     Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
                 } elseif ($LASTEXITCODE -eq 4) {
                     Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
-                } elseif ($LASTEXITCODE -eq 5) {
-                    Write-Host "     Not found! No apps matched <$($UserPrompt)> in the provisioned apps list.`n" -ForegroundColor Red
-                }else {
-                    Write-Host "     Error: wow, you have not accounted for this error in the script dude!!!" -ForegroundColor Red
+                } else {
+                    Write-Host "     Error: wow, something is wrong with the script iteself!!!`n" -ForegroundColor Red
                 }
 
                 break
             }
             "8" {
-                $UserPrompt = "q"
+                Write-Host "     Enter the full app name to uninstall for all users of this workstation: " -NoNewline 
+                $UserPrompt = Read-Host
+                Write-Host ""
+
+                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                    $UserPrompt = ""
+                    continue
+                }
+
+                # Get the current working directory so that we can call the correct file. 
+                $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+                $FilePath = "$CurrentWorkingDirectory\RemoveAppForAllUsers.ps1"
+
+                # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
+                # to execute the scriptblock expression. Without the ampersand, errors. Pass
+                # in the app name to search for from input as an argument. 
+                & $FilePath -Arg1 $UserPrompt | Out-Null
+
+                # After elevated script exits check exit code and handle here
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "     Successfully deleted the app for all current users.`n" -ForegroundColor Green
+                } elseif ($LASTEXITCODE -eq 1) {
+                    Write-Host "     Error: command failed to remove the app for all current users.`n" -ForegroundColor Red 
+                } elseif ($LASTEXITCODE -eq 2) {
+                    Write-Host "     Error: command failed to update the local list of all installed apps for current user.`n" -ForegroundColor Red
+                } elseif ($LASTEXITCODE -eq 3) {
+                    Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
+                } 
+                else {
+                    Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
+                }
+
                 break
             }
             "9" {
