@@ -17,16 +17,6 @@
 # 6/11/2021
 ##
 
-######################### SET-UP: ELEVATED ############################
-
-# Sets up the script to run in elevated mode if not. This is to allow the batch script that is calling 
-# this file to be able to run without it being in elevated mode. 
-
-# if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) { 
-#    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs; 
-#    exit 
-#}
-
 ######################### GLOABL VARIABLES ############################
 $CurLoggedInUser = Get-WmiObject -class Win32_ComputerSystem | Select-Object -ExpandProperty Username
 $AppXBundleDir = 'C:\AppXBundles\'
@@ -170,8 +160,8 @@ Function GetStagedAppXPackageList {
 ##
 # GetCurUserAppxPackageList
 #
-# Gets a list of the app packages that are installed for current user.
-#  
+# Gets a list of the app packages that are installed for current user and redirects outputs
+# to a local file. 
 Function GetCurUserAppxPackageList {
     $FullFilePath = "$OutputDirectoryPath\Current_User_Installed_Apps_List.txt"
 
@@ -253,6 +243,15 @@ Function RemoveAppForCurUser ($UserPrompt) {
     }
 }
 
+##
+# CheckIfAppExistAtProvision
+#
+# Everytime we edit the list at provision, we always edit the list locally as well.
+# To prevent the many times we need to elevate, because getting the appx provision list
+# requires elevation, we just basically search the local list for a match.
+# 
+# @param <string> AppName The name of the app to search for in Provision.
+# @return <string> FoundAppsArray The array of the apps found at provision local list.
 Function CheckIfAppExistAtProvision ($AppName) {
     $FullFilePath = "$($OutputDirectoryPath)\$($ProAppListName)"    
     
@@ -331,6 +330,13 @@ Function InstallAppForCurUser ($AppName) {
     }
 }
 
+##
+# GetAppFolderPath
+#
+# Gets the path for the appx bundle directory.
+# 
+# @param <string> AppName The name of the app to search for in the bundle directory.
+# @return <string> "NONE" if no match. Otherwise returns the folder path to a match.
 Function GetAppFolderPath ($AppName) {
     $FoundFolderName = Get-ChildItem -Path $AppXBundleDir -Name -Directory |  Select-String -Pattern $AppName
     
@@ -341,18 +347,6 @@ Function GetAppFolderPath ($AppName) {
         return "NONE"
     }
 }
-
-Function StageAppToProvision ($AppName) {
-    $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
-    $FilePath = "$($CurrentWorkingDirectory)\StageAppToProvision.ps1"
-
-    # Start a new process of powershell in elevated mode to run the get provisioned package command
-    $Process = Start-Process Powershell -ArgumentList "-File $($FilePath)" -Verb RunAs -PassThru -Wait
-
-
-}
-
-#Function Install
 
 ##
 # StartPrompt
@@ -636,6 +630,10 @@ Function StartPrompt {
                 break
             }
             "8" {
+                $UserPrompt = "q"
+                break
+            }
+            "9" {
                 $UserPrompt = "q"
                 break
             }
