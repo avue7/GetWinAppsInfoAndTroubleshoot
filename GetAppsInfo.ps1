@@ -18,7 +18,7 @@
 # 6/11/2021
 ##
 
-################ FUNCTION DEFINITION #########################
+###################### BOILER PLATE FUNCTIONS #####################
 
 ## 
 # OutputTextExist
@@ -57,8 +57,8 @@ Function GetCurUserWindowsAppInfoPath {
 # Gets provisioned app packages staged at OS level and outputs 
 # name to a text in the documents directory. 
 # 
-# @Param <string> OutputDirectoryPath The path of the output directory. 
-Function GetAppxProvisionPackageList ($OutputDirectoryPath) {
+# @return <boolean> True or false base on success.
+Function GetAppxProvisionPackageList {
     $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
     $FullFilePath = "$CurLogInUserWindowsAppsInfoPath\Provisioned_Apps_List.txt"
 
@@ -72,6 +72,10 @@ Function GetAppxProvisionPackageList ($OutputDirectoryPath) {
     } 
     catch 
     {
+        Write-Host "Error:: GetAppXProvisionPackageList: $_.Exception.Message`n" -ForegroundColor Red
+        Write-Host -NoNewLine 'Press any key to continue...';
+        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+
         return $false
     }
 
@@ -98,7 +102,8 @@ Function GetAppxProvisionPackageList ($OutputDirectoryPath) {
 #
 # Gets apps staged and available for current user
 # 
-# @Param <string> OutputDirectoryPath The path of the output directory. 
+# @Param <string> OutputDirectoryPath The path of the output directory.
+# @return <boolean> True or false depending on success. 
 Function GetStagedAppXPackageList ($OutputDirectoryPath) {
     $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
     $FullFilePath = "$CurLogInUserWindowsAppsInfoPath\Available_Apps_List.txt"
@@ -113,6 +118,9 @@ Function GetStagedAppXPackageList ($OutputDirectoryPath) {
     } 
     catch 
     {
+        Write-Host "Error:: GetStagedAppXPackageList: $_.Exception.Message`n" -ForegroundColor Red
+        Write-Host -NoNewLine 'Press any key to continue...';
+        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
         return $false
     }
 
@@ -140,19 +148,26 @@ $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 $ErrorCounter = 0
 
 # Get Provisioned (STAGED) apps in the OS level and output to text file. 
-$Success1 = GetAppxProvisionPackageList $OutputDirectoryPath
+$Success1 = GetAppxProvisionPackageList
+
+# Explicitly exit with code for caller to parse. 
+if (!($Success1)) {
+    Exit 1
+} else {
+    Exit 0
+}
 
 # Get staged apps available for current user 
 # PLEASE KEEP: Not need for our purpose yet....
 # $Success2 = GetStagedAppXPackageList $OutputDirectoryPath
 
-if (!($Success1) -and !($Success2)) {
-    exit 3
-} elseif (!($Success2)) {
-    exit 2
-} elseif (!($Success1)) {
-    exit 1
-}
+#if (!($Success1) -and !($Success2)) {
+#    exit 3
+#} elseif (!($Success2)) {
+#    exit 2
+#} elseif (!($Success1)) {
+#    exit 1
+#}
 
 # Uncomment below block for debugging 
 

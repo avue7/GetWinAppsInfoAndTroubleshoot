@@ -1,24 +1,24 @@
 ﻿###
-# StageAppToProvision.ps1
+# RemoveAppFromProvision.ps1
 # 
-# This is a helper script that is run in elevated mode to stage an
-# app to the provisioned or OS level.
+# This is a helper script that is run in elevated mode to remove an
+# app from the provisioned or OS level.
 #
 # @Author
 # Athit Vue
 # 
 # @Date
-# 6/11/2021
+# 6/13/2021
 #
 # @Last Updated
-# 6/12/2021
+# 6/13/2021
 ##
 
-# Retrieving te passed in argument
-param($Arg1, $Arg2)
+# Retrieving the passed in argument
+param($Arg1)
 
 # Set the argument to array variable
-$args = @($Arg1, $Arg2)
+$args = @($Arg1)
 
 ######################### SELF-ELEVATE ###########################
 
@@ -39,7 +39,7 @@ if (!
 	)
 ) {
 	#elevate script and exit current non-elevated runtime
-	$Proces = Start-Process `
+	$Process = Start-Process `
 		-FilePath 'powershell' `
 		-ArgumentList (
 			#flatten to single array
@@ -104,7 +104,7 @@ Function UpdateAppxProvisionPackageLocalList {
     } 
     catch 
     {
-        Write-Host "Error:: UpdateAppXProvisionPackageLocalList: $_.Exception.Message`n" -ForegroundColor Red
+        Write-Host "Error: UpdateAppXProvisionPackageLocalList: $_.Exception.Message`n" -ForegroundColor Red
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
         return $false
@@ -131,23 +131,52 @@ Function UpdateAppxProvisionPackageLocalList {
 ################# SPECIFIC FUNCTION DEFINITIONS ###############
 
 ##
-# AppAppToProvisionLevel
+# GetPackageName
 # 
-# Adds/stage an app to the provisioned OS level for new user on current workstation.
+# Gets the package name of the app to remove at the provisioned level. 
 #
-# @param <string> AppXBundlePath The full path to the file of the appx bundle
-# @return <boolean> True or false base on success or not
-Function AddAppToProvisionLevel ($AppxBundlePath) {
+# @param <string> AppName The name of the app to remove.
+# @return <string> AppPackageName The package name of the app to be removed or "NONE" failed.
+Function GetPackageName ($AppName) {
     try
     {
-        Add-AppxProvisionedPackage -Online -SkipLicense -PackagePath $AppxBundlePath
+        $AppPackageName = Get-AppxProvisionedPackage -Online | Where-Object {$_.PackageName -like "*$($AppName)*"} | Select-Object -ExpandProperty PackageName
+        return $AppPackageName
+    }
+    catch
+    {
+        # If we wanted to know exactly why it did not go thru we can catch and display the error returned here.
+        # What we can do is make this script pause and wait for user to prompt exiting script so that the 
+        # user can at least see what the error message return is before going back to the calling script. 
+        # For simplicity, well just return false and parse it at the main script without getting the 
+        # actual error. Keep this block and next line for future implementation if needed.
+        Write-Host "Error:: GetPackageName: $_.Exception.Message`n" -ForegroundColor Red
+        Write-Host -NoNewLine 'Press any key to continue...';
+        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+        
+        return "ERROR"
+    }
+}
+
+##
+# RemoveAppFromProvisionLevel
+# 
+# Removes an app from the provisioned OS level for new user on current workstation.
+#
+# @param <string> AppPackageName The package name of the app to be removed.
+# @return <boolean> True or false base on success or not
+Function RemoveAppFromProvisionLevel ($AppPackageName) {
+    try
+    {
+        Remove-AppxProvisionedPackage -Online -PackageName $AppPackageName
         return $True
     }
     catch 
     {
-        Write-Host "Error:: AddAppToProvisionLevel: $_.Exception.Message`n" -ForegroundColor Red
+        Write-Host "Error:: RemoveAppFromProvisionLevel: $_.Exception.Message`n" -ForegroundColor Red
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+
         return $False
     }
 }
@@ -157,26 +186,34 @@ Function AddAppToProvisionLevel ($AppxBundlePath) {
 $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 
 $AppName = $args[0]
-$AppxBundlePath = $args[1]
 
-# Set/stage app to provisioned OS level
-$Success1 = AddAppToProvisionLevel $AppxBundlePath
+$AppPackageName = GetPackageName $AppName
+
+# Exit with code 5 if not found. No point continuing. Caller will 
+# handle code.
+if ($($AppPackageName) -eq "" -or $AppPackageName -eq $null) {
+    exit 5   
+}
+
+# Remove app to provisioned OS level
+$Success2 = RemoveAppFromProvisionLevel $AppPackageName
 
 # Get Provisioned (STAGED) apps in the OS level and output to text file. 
-$Success2 = UpdateAppxProvisionPackageLocalList
+$Success3 = UpdateAppxProvisionPackageLocalList
 
-## Debug: to debug uncomment
+# Debug: to debug uncomment
 #$QuitResponse = ""
 #while($QuitResponse -ne "q") {
 #   Write-Host "quit or not: " -NoNewline
 #   $QuitResponse = Read-Host
 #}
 
-
-if (!($Success1) -and !($Success2)) {
+if (($AppPackageName -eq "ERROR") -and !($Success2) -and !($Success3)) {
+    exit 4
+} elseif (!($Success3)) {
     exit 3
 } elseif (!($Success2)) {
     exit 2
-} elseif (!($Success1)) {
+} elseif ($AppPackageName -eq "ERROR") {
     exit 1
-}
+} 

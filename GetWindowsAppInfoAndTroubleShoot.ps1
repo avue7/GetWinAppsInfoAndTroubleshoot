@@ -11,10 +11,10 @@
 # Athit Vue
 #
 # @Date:
-# 6/5/2021 
+# 6/1/2021 
 #
 # @Last Updated:
-# 6/12/2021
+# 6/11/2021
 ##
 
 ######################### SET-UP: ELEVATED ############################
@@ -84,12 +84,13 @@ function GetAppsInfo {
 
     # Debugg:
     # Write-Host $Process.ExitCode
-    
-    if ($Process.ExitCode -eq "3") {
-        Write-Host "`nError: The script in elevated mode failed to get any info on apps at all.`n" -ForegroundColor Red
-        Write-Host "No worries, please continue...`n" -ForegroundColor Red
-        return
-    } else {
+   
+   # Please keep for future use 
+   #if ($Process.ExitCode -eq "3") {
+   #    Write-Host "`nError: The script in elevated mode failed to get any info on apps at all.`n" -ForegroundColor Red
+   #    Write-Host "No worries, please continue...`n" -ForegroundColor Red
+   #    return
+   #} else {
         if ($Process.ExitCode -eq "1") {
             Write-Host "`nError: The script in elevated mode failed to get the provisioned apps list.`n" -ForegroundColor Red
             Write-Host "No worries, please continue...`n" -ForegroundColor Red
@@ -97,13 +98,13 @@ function GetAppsInfo {
             GetAppxProvisionPackageList $OutputDirectoryPath
         }
         
-        if ($Process.ExitCode -eq "2"){
-            Write-Host "`nError: The script in elevated mode failed to get the staged apps list.`n" -ForegroundColor Red
-            Write-Host "No worries, please continue...`n" -ForegroundColor Red
-        } else {
-            GetStagedAppXPackageList $OutputDirectoryPath
-        }
-    }
+       #if ($Process.ExitCode -eq "2"){
+       #    Write-Host "`nError: The script in elevated mode failed to get the staged apps list.`n" -ForegroundColor Red
+       #    Write-Host "No worries, please continue...`n" -ForegroundColor Red
+       #} else {
+       #    GetStagedAppXPackageList $OutputDirectoryPath
+       #}
+    #}
 }
 
 ## 
@@ -204,7 +205,7 @@ Function GetCurUserAppxPackageList {
     Write-Output "" | Out-File -FilePath $FullFilePath -Append
     Write-Output "Total count of apps installed under current user <$($CurLoggedInUser)>: <$($Counter)>" | Out-File -FilePath $FullFilePath -Append 
     Write-Host "`nTotal count of apps installed under current user <$($CurLoggedInUser)>: " -Foreground Cyan -NoNewline
-    Write-Host "<$($Counter)>" -Foreground Yellow
+    Write-Host "<$($Counter)>`n" -Foreground Yellow
 
     # Write-Host "`n################################################################`n" -ForegroundColor Red
 }
@@ -239,7 +240,7 @@ Function RemoveAppForCurUser ($UserPrompt) {
     
     try
     {
-        Write-Host "     Running command: `'Get-AppxPackage -Name `"*$($UserPrompt)*`" | Remove-AppxPackage'..." -ForegroundColor Cyan
+        # Write-Host "     Running command: `'Get-AppxPackage -Name `"*$($UserPrompt)*`" | Remove-AppxPackage'..." -ForegroundColor Cyan
         Get-AppxPackage -Name "*$($UserPrompt)*" | Remove-AppxPackage
         
         Write-Host "     Successfully removed app for <$($AppPackageName)>`n" -ForegroundColor Green
@@ -262,7 +263,7 @@ Function CheckIfAppExistAtProvision ($AppName) {
 
     foreach ($App in $AppsArray) {
         if ($App -Match $AppName){
-            Write-Host "     Found a match for <$($AppName)> staged at provisioned OS level: $($App)" -ForegroundColor Green
+            Write-Host "     Found a match for <$($AppName)> staged at provisioned OS level: $($App)`n" -ForegroundColor Green
             $FoundFlag = $True
             $Counter += 1
             $FoundAppsArray += $App
@@ -270,7 +271,7 @@ Function CheckIfAppExistAtProvision ($AppName) {
     }
 
     if ($FoundFlag -eq $False) {
-        Write-Host "     Not found! No matches were found for <$($AppName)> at the provisioned OS level." -ForegroundColor Red
+        Write-Host "     Not found! No matches were found for <$($AppName)> at the provisioned OS level.`n" -ForegroundColor Red
         return "NONE"
     } else {
         return $FoundAppsArray
@@ -290,7 +291,7 @@ Function InstallAppForCurUser ($AppName) {
 
             try 
             {
-                Write-Host "     Running command: `'Add-AppXPackage -Path $($FullFilePath)`'..." -ForegroundColor Cyan
+                # Write-Host "     Running command: `'Add-AppXPackage -Path $($FullFilePath)`'..." -ForegroundColor Cyan
                 Add-AppxPackage -Path $FullFilePath
 
                 $AppName = Get-AppxPackage -Name "*$($UserPrompt)*" | Select-Object -ExpandProperty PackageFullName
@@ -309,8 +310,8 @@ Function InstallAppForCurUser ($AppName) {
                 return
         }
     } else {
-        Write-Host "     App is already installed. Reinstalling using command:" -ForegroundColor Cyan
-        Write-Host "     `'Get-AppxPackage -Name `"*$($AppName)*`" | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register `"$($_.InstallLocation)\AppXManifest.xml`"}`"`'" -ForegroundColor Cyan
+        # Write-Host "     App is already installed. Reinstalling using command:" -ForegroundColor Cyan
+        # Write-Host "     `'Get-AppxPackage -Name `"*$($AppName)*`" | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register `"$($_.InstallLocation)\AppXManifest.xml`"}`"`'" -ForegroundColor Cyan
 
         try
         {
@@ -362,29 +363,28 @@ Function StartPrompt {
     $UserPrompt = "-1"
 
     while (($UserPrompt -ne "q") -or ($UserPrompt -ne "Q")) {
-        Write-Host "`n################################################################`n" -ForegroundColor Red
+        Write-Host "################################################################`n" -ForegroundColor Red
         
         Write-Host "What would you like for me do today (enter a number)?`n"
         Write-Host "Options:"
         Write-Host "     (1) - " -NoNewLine
-        Write-Host "Uninstall and Reinstall" -ForegroundColor Yellow -NoNewline
-        Write-Host " an app for the current user <" -NoNewLine
-        Write-Host "$($CurLoggedInUser)" -ForegroundColor Yellow -NoNewline
-        Write-Host ">."
-        Write-Host "     (2) - " -NoNewLine 
-        Write-Host "Install/Reinstall" -NoNewline -ForegroundColor Yellow
-        Write-Host " an app for the " -NoNewLine
-        Write-Host "current user." -ForegroundColor Yellow 
-        Write-Host "     (3) - " -NoNewLine
         Write-Host "Check" -NoNewline -ForegroundColor Yellow
         Write-Host " if an app" -NoNewline
         Write-Host " is installed" -NoNewline -ForegroundColor Yellow
         Write-Host " for the " -NoNewLine
         Write-Host "current user." -ForegroundColor Yellow
-        Write-Host "     (4) -" -NoNewline
+        Write-Host "     (2) - " -NoNewLine 
+        Write-Host "Install/Reinstall" -NoNewline -ForegroundColor Yellow
+        Write-Host " an app for the " -NoNewLine
+        Write-Host "current user." -ForegroundColor Yellow 
+        Write-Host "     (3) -" -NoNewline
         Write-Host " Uninstall" -ForegroundColor Yellow -NoNewline
         Write-Host " an app for the " -NoNewLine 
         Write-Host "current user." -ForegroundColor Yellow
+        Write-Host "     (4) - " -NoNewLine
+        Write-Host "Uninstall and Reinstall" -ForegroundColor Yellow -NoNewline
+        Write-Host " an app for the current user " -NoNewLine
+        Write-Host "<$($CurLoggedInUser)>." -ForegroundColor Yellow
         Write-Host "     (5) - " -NoNewline
         Write-Host "Check" -NoNewline -ForegroundColor Yellow
         Write-Host " if an app is" -NoNewline
@@ -396,8 +396,8 @@ Function StartPrompt {
         Write-Host "     (6) - " -NoNewline
         Write-Host "Add/Stage " -NoNewline -ForegroundColor Yellow
         Write-Host "an app to the " -NoNewline
-        Write-Host "provisioned OS level" -NoNewline -ForegroundColor Yellow
-        Write-Host "."
+        Write-Host "provisioned OS level." -ForegroundColor Yellow
+        Write-Host "           Danger Zone: affects all new users of this workstation." -ForegroundColor Red
         Write-Host "     (7) - " -NoNewline
         Write-Host "Uninstall" -NoNewline -ForegroundColor Yellow 
         Write-Host " an app " -NoNewLine 
@@ -405,13 +405,15 @@ Function StartPrompt {
         Write-Host "at the " -NoNewline
         Write-Host "provisioned OS level" -NoNewline -ForegroundColor Yellow
         Write-Host " for " -NoNewLine 
-        Write-Host "new users." -ForegroundColor Yellow 
+        Write-Host "new users." -ForegroundColor Yellow
+        Write-Host "           Danger Zone: affects all new users of this workstation." -ForegroundColor Red
         Write-Host "     (8) - " -NoNewLine
         Write-Host "Uninstall" -NoNewline -ForegroundColor Yellow
         Write-Host " an app for " -NoNewLine
-        Write-Host "all users" -NoNewline -ForegroundColor Yellow
-        Write-Host " on current workstation " -NoNewLine
-        Write-Host "<$($env:COMPUTERNAME).>" -ForegroundColor Yellow
+        Write-Host "all current users" -NoNewline -ForegroundColor Yellow
+        Write-Host " of this workstation " -NoNewLine
+        Write-Host "<$($env:COMPUTERNAME)>." -ForegroundColor Yellow
+        Write-Host "           Danger Zone: affects all current users of this workstation." -ForegroundColor Red 
         Write-Host "     (9) - Exit." 
 
         Write-Host ""
@@ -421,6 +423,74 @@ Function StartPrompt {
         switch ( $UserPrompt ) 
         {
             "1" {
+                Write-Host "     Enter the full name of the app to search for (enter `'q`' to go back): " -NoNewLine
+                $UserPrompt = Read-Host
+
+                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                    $UserPrompt = ""
+                    continue
+                }
+                
+                Write-Host " "
+                # Write-Host "     Running command: `'Get-AppxPackage -User $CurLoggedInUser -Name `"*$($UserPrompt)*`"`'...`n" -ForegroundColor Cyan
+                
+                $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
+
+                if ($IsInstalled -eq $true) {
+                    Write-Host "     Found! The app below matched <$($UserPrompt)> and is installed for current user <$($CurLoggedInUser)>:" -ForegroundColor Green
+
+                    $RetVal = Get-AppxPackage -User $CurLoggedInUser -Name "*$($UserPrompt)*"
+                    Write-Host "     $($RetVal)`n" -ForegroundColor Yellow
+                } elseif ($IsInstalled -eq $false) {
+                    Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
+                }
+
+                break
+            }
+            "2" {
+                # If appx bundle dir does not exist, no point continuing.
+                if (!(Test-Path -Path $AppXBundleDir)) {
+                    Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
+                    Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
+                    Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
+                    Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
+                    break
+                }
+
+                Write-Host "     Enter the full name of the app to install/re-install (enter `'q`' to go back): " -NoNewline
+                $UserPrompt = Read-Host
+                Write-Host " "
+                 
+                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                   $UserPrompt = ""
+                   continue
+                }
+                
+                InstallAppForCurUser $UserPrompt
+
+                break
+            }
+            "3" {
+                Write-Host "     Enter the full name of the app you would like to uninstall (enter `'q`' to go back): " -NoNewline
+                $UserPrompt = Read-Host
+                Write-Host ""
+                
+                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                    $UserPrompt = ""
+                    continue
+                }
+
+                $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
+
+                if ($IsInstalled -eq $true) {
+                    $IsRemoved = RemoveAppForCurUser $UserPrompt
+                } else {
+                    Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
+                }
+
+                break
+            }
+            "4" {
                 # If appx bundle dir does not exist, no point continuing.
                 if (!(Test-Path -Path $AppXBundleDir)) {
                     Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
@@ -466,74 +536,6 @@ Function StartPrompt {
                     }
                 }
             }
-            "2" {
-                # If appx bundle dir does not exist, no point continuing.
-                if (!(Test-Path -Path $AppXBundleDir)) {
-                    Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
-                    Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
-                    Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
-                    Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
-                    break
-                }
-
-                Write-Host "     Enter the full name of the app to install/re-install for <$($CurLoggedInUser)> (enter `'q`' to go back)"
-                $UserPrompt = Read-Host "     "
-                Write-Host " "
-                 
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                   $UserPrompt = ""
-                   continue
-                }
-                
-                InstallAppForCurUser $UserPrompt
-
-                break
-            }
-            "3" {
-                Write-Host "     Enter the full name of the app to search for (enter `'q`' to go back): " -NoNewLine
-                $UserPrompt = Read-Host
-
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-                
-                Write-Host " "
-                Write-Host "     Running command: `'Get-AppxPackage -User $CurLoggedInUser -Name `"*$($UserPrompt)*`"`'...`n" -ForegroundColor Cyan
-                
-                $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
-
-                if ($IsInstalled -eq $true) {
-                    Write-Host "     Found! The app below matched <$($UserPrompt)> and is installed for current user <$($CurLoggedInUser)>:" -ForegroundColor Green
-
-                    $RetVal = Get-AppxPackage -User $CurLoggedInUser -Name "*$($UserPrompt)*"
-                    Write-Host "     $($RetVal)`n" -ForegroundColor Yellow
-                } elseif ($IsInstalled -eq $false) {
-                    Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
-                }
-
-                break
-            }
-            "4" {
-                Write-Host "     Enter the full name of the app you would like to uninstall (enter `'q`' to go back): " -NoNewline
-                $UserPrompt = Read-Host
-                Write-Host ""
-                
-                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
-                    $UserPrompt = ""
-                    continue
-                }
-
-                $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
-
-                if ($IsInstalled -eq $true) {
-                    $IsRemoved = RemoveAppForCurUser $UserPrompt
-                } else {
-                    Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
-                }
-
-                break
-            }
             "5" {
                 Write-Host "     Enter the full app name you would like to search for (enter `'q`' to go back): " -NoNewline
                 $UserPrompt = Read-Host
@@ -551,6 +553,11 @@ Function StartPrompt {
                 Write-Host "     Enter the full app name you would like to add/stage at provisioned OS level: " -NoNewline 
                 $UserPrompt = Read-Host
                 Write-Host ""
+
+                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                    $UserPrompt = ""
+                    continue
+                }
 
                 # Check if appx bundle exist. If not no point continuing.
                 $AppFolderPath = GetAppFolderPath $UserPrompt
@@ -571,7 +578,7 @@ Function StartPrompt {
 
                     # After elevated script exits check exit code and handle here
                     if ($LASTEXITCODE -eq 0) {
-                        Write-Host "     Successfully added the app to provisioned OS level for new users.`n" -ForegroundColor Green
+                        Write-Host "     Successfully added the app to the provisioned OS level for new users.`n" -ForegroundColor Green
                     } elseif ($LASTEXITCODE -eq 1) {
                         Write-Host "     Error: command failed to add app to provisioned OS level.`n" -ForegroundColor Red 
                     } elseif ($LASTEXITCODE -eq 2) {
@@ -591,61 +598,41 @@ Function StartPrompt {
                 break
             }
             "7" {
-                # THIS IS THE COMMAND TO DELETE 
-                # Remove-AppxProvisionedPackage -Online -PackageName "Microsoft.WindowsCalculator_2020.2103.8.0_neutral_~_8wekyb3d8bbwe"
-                
-                $AddToProvisionFlag = $False
+                Write-Host "     Enter the full app name to remove from the provisioned OS level: " -NoNewline 
+                $UserPrompt = Read-Host
+                Write-Host ""
 
-                $FoundAppsArray = CheckIfAppExistAtProvision $UserPrompt
-
-                # If more than one app matches prompt, we must allow the user to choose one.
-                if ($FoundAppsArray.count -gt 1) {
-                    Write-Host "     Please select the app to add to provisioned app list: " -NoNewline
-
-                    foreach ($App in $FoundAppsArray) {
-                        # Eternal loop...noooooooooooo!!!!!!!!!!!!
-                        while ($True) {
-                            Write-Host "     Add <$($App)> to provisioned app list (y/n): " -NoNewline
-                            $Response = Read-Host
-
-                            if (($Response -eq "Y") -or ($Response -eq "y")) {
-                                $UserPrompt = $App
-                                $AddToProvisionFlag = $True
-                                break
-                            } elseif (($Response -eq "N") -or ($Response -eq "n")) {
-                                $AddToProvisionFlag = $False                                
-                                break
-                            }
-                        }
-                        
-                    }
-                } elseif ($FoundAppsArray.count -eq 1) {
-                    foreach ($App in $FoundAppsArray) {
-                        if ($App -ne "NONE") {
-                            while ($True) {
-                                Write-Host "     Add <$($App)> to provisioned app list (y/n): " -NoNewline
-                                $Response = Read-Host
-
-                                if (($Response -eq "Y") -or ($Response -eq "y")) {
-                                    $UserPrompt = $App
-                                    $AddToProvisionFlag = $True
-                                    break
-                                } elseif (($Response -eq "N") -or ($Response -eq "n")) {
-                                    $AddToProvisionFlag = $False
-                                    break
-                                }
-                            }
-                        }
-
-                    }
+                if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                    $UserPrompt = ""
+                    continue
                 }
 
-                # Checkpoint: don't continue if user did not want to add any of 
-                # found apps to 
-                if ($AddToProvisionFlag -eq $False) {
-                    break
+                # Get the current working directory so that we can call the correct file. 
+                $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+                $FilePath = "$CurrentWorkingDirectory\RemoveAppFromProvision.ps1"
+
+                # Call the StageAppToProvision script using the ampersand to tell powershell 
+                # to execute the scriptblock expression. Without the ampersand, errors. Pass
+                # in the app name to search for from input as an argument. 
+                & $FilePath -Arg1 $UserPrompt | Out-Null
+
+                # After elevated script exits check exit code and handle here
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "     Successfully deleted the app from the provisioned OS level for new users.`n" -ForegroundColor Green
+                } elseif ($LASTEXITCODE -eq 1) {
+                    Write-Host "     Error: command failed to package name for <$($UserPrompt)>.`n" -ForegroundColor Red 
+                } elseif ($LASTEXITCODE -eq 2) {
+                    Write-Host "     Error: command failed to remove package from provisioned OS level.`n" -ForegroundColor Red
+                } elseif ($LASTEXITCODE -eq 3) {
+                    Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
+                } elseif ($LASTEXITCODE -eq 4) {
+                    Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
+                } elseif ($LASTEXITCODE -eq 5) {
+                    Write-Host "     Not found! No apps matched <$($UserPrompt)> in the provisioned apps list.`n" -ForegroundColor Red
+                }else {
+                    Write-Host "     Error: wow, you have not accounted for this error in the script dude!!!" -ForegroundColor Red
                 }
-                $UserPrompt = "q"
+
                 break
             }
             "8" {
