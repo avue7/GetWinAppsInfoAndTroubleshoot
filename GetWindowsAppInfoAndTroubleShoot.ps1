@@ -262,7 +262,8 @@ Function CheckIfAppExistAtProvision ($AppName) {
 
     foreach ($App in $AppsArray) {
         if ($App -Match $AppName){
-            Write-Host "     Found a match for <$($AppName)> staged at provisioned OS level: $($App)`n" -ForegroundColor Green
+            Write-Host "     Found a match for <$($AppName)> staged at provisioned OS level: " -ForegroundColor Green -NoNewline
+            Write-Host "<$($App)>`n" -ForegroundColor Yellow
             $FoundFlag = $True
             $Counter += 1
             $FoundAppsArray += $App
@@ -358,7 +359,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
     switch ( $UserPrompt ) 
     {
 
-        "1" {
+        "0" {
             Write-Host "     Enter the full name of the app to search for (enter `'q`' to go back): " -NoNewLine
             $UserPrompt = Read-Host
 
@@ -383,7 +384,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             break
         }
-        "2" {
+        "1" {
             # If appx bundle dir does not exist, no point continuing.
             if (!(Test-Path -Path $AppXBundleDir)) {
                 Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
@@ -406,7 +407,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             break
         }
-        "3" {
+        "2" {
             Write-Host "     Enter the full name of the app you would like to uninstall (enter `'q`' to go back): " -NoNewline
             $UserPrompt = Read-Host
             Write-Host ""
@@ -426,7 +427,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             break
         }
-        "4" {
+        "3" {
             # If appx bundle dir does not exist, no point continuing.
             if (!(Test-Path -Path $AppXBundleDir)) {
                 Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
@@ -472,7 +473,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 }
             }
         }
-        "5" {
+        "4" {
             Write-Host "     Enter the full app name you would like to search for (enter `'q`' to go back): " -NoNewline
             $UserPrompt = Read-Host
             Write-Host ""
@@ -485,7 +486,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             $AppExists = CheckIfAppExistAtProvision $UserPrompt
             break
         }
-        "6" {
+        "5" {
             $UserPrompt = ""
 
             if (($SkipPromptFlag -eq $Null) -or ($SkipPromptFlag -ne $True)) {
@@ -539,7 +540,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 
             break
         }
-        "7" {
+        "6" {
             Write-Host "     Enter the full app name to remove from the provisioned OS level: " -NoNewline 
             $UserPrompt = Read-Host
             Write-Host ""
@@ -575,6 +576,51 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             break
         }
+        "7" {
+            Write-Host "     Enter the full app name to search for all users: " -NoNewline 
+            $UserPrompt = Read-Host
+            Write-Host ""
+
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                continue
+            }
+
+            # Get the current working directory so that we can call the correct file. 
+            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+            $FilePath = "$CurrentWorkingDirectory\CheckAppForAllUsers.ps1"
+           
+            # Call the CheckAppForAllUsers script using the ampersand to tell powershell 
+            # to execute the scriptblock expression. Without the ampersand, errors. Pass
+            # in the app name to search for from input as an argument. 
+            & $FilePath -Arg1 $UserPrompt | Out-Null
+           
+            ## After elevated script exits check exit code and handle here
+            if ($LASTEXITCODE -eq 0) {
+                # Display the app on the list show it here. 
+                $AppInfoFilePath = "$($OutputDirectoryPath)\All_Users_App_Search.txt"
+                $AppsInfoString = Get-Content $AppInfoFilePath
+                
+                $Counter = 0
+
+                Write-Host "     Found! Below are the following users I found this app installed for:" -ForegroundColor Green
+                foreach ($UserInfo in $AppsInfoArray) {
+                    $Counter += 1
+                    Write-Host "     $($Counter). $($UserInfo)" -ForegroundColor Yellow    
+                }
+                
+                Write-Host ""
+            } elseif ($LASTEXITCODE -eq 1) {
+                Write-Host "     Error: command failed to search the app for all current users.`n" -ForegroundColor Red
+            } elseif ($LASTEXITCODE -eq 2) {
+                Write-Host "     Error: command failed to redirect to output file.`n" -ForegroundColor Red
+            }  
+            else {
+                Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
+            }
+           
+            break           
+        }
         "8" {       
            # Get the current working directory so that we can call the correct file. 
            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
@@ -599,7 +645,6 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
            }
            
-           break
            break
         }
         "9" {
@@ -656,25 +701,25 @@ Function StartPrompt {
         
         Write-Host "What would you like for me do today (enter a number)?`n"
         Write-Host "Options:"
-        Write-Host "     (1) - " -NoNewLine
+        Write-Host "     (0) - " -NoNewLine
         Write-Host "Check" -NoNewline -ForegroundColor Yellow
         Write-Host " if an app" -NoNewline
         Write-Host " is installed" -NoNewline -ForegroundColor Yellow
         Write-Host " for the " -NoNewLine
         Write-Host "current user." -ForegroundColor Yellow
-        Write-Host "     (2) - " -NoNewLine 
+        Write-Host "     (1) - " -NoNewLine 
         Write-Host "Install/Reinstall" -NoNewline -ForegroundColor Yellow
         Write-Host " an app for the " -NoNewLine
         Write-Host "current user." -ForegroundColor Yellow 
-        Write-Host "     (3) -" -NoNewline
+        Write-Host "     (2) -" -NoNewline
         Write-Host " Uninstall" -ForegroundColor Yellow -NoNewline
         Write-Host " an app for the " -NoNewLine 
         Write-Host "current user." -ForegroundColor Yellow
-        Write-Host "     (4) - " -NoNewLine
+        Write-Host "     (3) - " -NoNewLine
         Write-Host "Uninstall and Reinstall" -ForegroundColor Yellow -NoNewline
         Write-Host " an app for the current user " -NoNewLine
         Write-Host "<$($CurLoggedInUser)>." -ForegroundColor Yellow
-        Write-Host "     (5) - " -NoNewline
+        Write-Host "     (4) - " -NoNewline
         Write-Host "Check" -NoNewline -ForegroundColor Yellow
         Write-Host " if an app is" -NoNewline
         Write-Host " staged" -NoNewline -ForegroundColor Yellow
@@ -682,12 +727,13 @@ Function StartPrompt {
         Write-Host "provisioned OS level" -NoNewline -ForegroundColor Yellow
         Write-Host " for " -NoNewLine 
         Write-Host "new users." -ForegroundColor Yellow 
-        Write-Host "     (6) - " -NoNewline
+        Write-Host "     (5) - " -NoNewline
         Write-Host "Add/Stage " -NoNewline -ForegroundColor Yellow
         Write-Host "an app to the " -NoNewline
         Write-Host "provisioned OS level." -ForegroundColor Yellow
-        Write-Host "           Danger Zone: affects all new users of this workstation." -ForegroundColor Red
-        Write-Host "     (7) - " -NoNewline
+        Write-Host "     ***** Danger Zone: below commands affects all new users *****" -ForegroundColor Red
+        Write-Host "     ***** or current existing users of this workstation."   ***** -ForegroundColor Red
+        Write-Host "     (6) - " -NoNewline
         Write-Host "Uninstall" -NoNewline -ForegroundColor Yellow 
         Write-Host " an app " -NoNewLine 
         Write-Host "staged " -NoNewLine -ForegroundColor Yellow
@@ -695,22 +741,24 @@ Function StartPrompt {
         Write-Host "provisioned OS level" -NoNewline -ForegroundColor Yellow
         Write-Host " for " -NoNewLine 
         Write-Host "new users." -ForegroundColor Yellow
-        Write-Host "           Danger Zone: affects all new users of this workstation." -ForegroundColor Red
+        Write-Host "     (7) - " -NoNewline
+        Write-Host "Check" -NoNewline -ForegroundColor Yellow
+        Write-Host " if an app" -NoNewline
+        Write-Host " is installed" -NoNewline -ForegroundColor Yellow
+        Write-Host " for " -NoNewLine
+        Write-Host "other existing users." -ForegroundColor Yellow
         Write-Host "     (8) - " -NoNewLine
         Write-Host "Install" -NoNewline -ForegroundColor Yellow
         Write-Host " an app for " -NoNewLine
         Write-Host "all current users" -NoNewline -ForegroundColor Yellow
         Write-Host " of this workstation " -NoNewLine
         Write-Host "<$($env:COMPUTERNAME)>." -ForegroundColor Yellow
-        Write-Host "           Danger Zone: affects all current users of this workstation." -ForegroundColor Red 
         Write-Host "     (9) - " -NoNewLine
         Write-Host "Uninstall" -NoNewline -ForegroundColor Yellow
         Write-Host " an app for " -NoNewLine
         Write-Host "all current users" -NoNewline -ForegroundColor Yellow
         Write-Host " of this workstation " -NoNewLine
         Write-Host "<$($env:COMPUTERNAME)>." -ForegroundColor Yellow
-        Write-Host "           Danger Zone: affects all current users of this workstation." -ForegroundColor Red 
-
         Write-Host "     (q) - Enter q to exit." 
 
         Write-Host ""
@@ -722,13 +770,14 @@ Function StartPrompt {
         # commands we need to do as a workflow.
         if (($UserPrompt -ne "q") -Or ($UserPrompt -ne "Q")){
             if ($UserPrompt -eq "8") {
-                $UserPrompt = "6"
+                $UserPrompt = "5"
                 
                 Write-Host "     Enter the full app name to install/reinstall for all users of this workstation: " -NoNewline 
                 $AppNameParam = Read-Host
                 Write-Host ""
 
                 ProcessCommands $UserPrompt $True $AppNameParam
+
                 $UserPrompt = "8"
                 ProcessCommands $UserPrompt $False $AppNameParam
                 continue
