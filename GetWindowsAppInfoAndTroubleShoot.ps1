@@ -614,8 +614,10 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 Write-Host "     This workstation currently has <"
 
             } elseif ($LASTEXITCODE -eq 1) {
-                Write-Host "     Error: command failed to search the app for all current users.`n" -ForegroundColor Red
+                Write-Host "     Not found! No installed app matched <$UserPrompt>.`n" -ForegroundColor Red 
             } elseif ($LASTEXITCODE -eq 2) {
+                Write-Host "     Error: command failed to search the app for all current users.`n" -ForegroundColor Red
+            } elseif ($LASTEXITCODE -eq 3) {
                 Write-Host "     Error: command failed to redirect to output file.`n" -ForegroundColor Red
             }  
             else {
@@ -722,6 +724,8 @@ Function StartPrompt {
         Write-Host "Uninstall and Reinstall" -ForegroundColor Yellow -NoNewline
         Write-Host " an app for the current user " -NoNewLine
         Write-Host "<$($CurLoggedInUser)>." -ForegroundColor Yellow
+        Write-Host "     ***** Danger Zone: below commands affects all new users *****" -ForegroundColor Red
+        Write-Host "     ***** or current existing users of this workstation.    *****" -ForegroundColor Red
         Write-Host "     (4) - " -NoNewline
         Write-Host "Check" -NoNewline -ForegroundColor Yellow
         Write-Host " if an app is" -NoNewline
@@ -734,8 +738,6 @@ Function StartPrompt {
         Write-Host "Add/Stage " -NoNewline -ForegroundColor Yellow
         Write-Host "an app to the " -NoNewline
         Write-Host "provisioned OS level." -ForegroundColor Yellow
-        Write-Host "     ***** Danger Zone: below commands affects all new users *****" -ForegroundColor Red
-        Write-Host "     ***** or current existing users of this workstation."   ***** -ForegroundColor Red
         Write-Host "     (6) - " -NoNewline
         Write-Host "Uninstall" -NoNewline -ForegroundColor Yellow 
         Write-Host " an app " -NoNewLine 

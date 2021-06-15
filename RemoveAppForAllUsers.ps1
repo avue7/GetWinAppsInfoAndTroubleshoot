@@ -135,19 +135,28 @@ Function UpdateCurrentUserInstalledAppsLocalList {
 # @param <string> AppName The name of the app to remove for all users. 
 # @return <boolean> True or false base on success or not.
 Function UninstallAppForAllCurrentUsers ($AppName) {
-    try
-    {
-        Get-AppXPackage -AllUsers -Name "*$($AppName)*" | Remove-AppxPackage -AllUsers
-        return $True
-    }
-    catch
-    {
-        Write-Host "Error:: UninstallAppForAllCurrentUsers: $_.Exception.Message`n" -ForegroundColor Red
-        Write-Host -NoNewLine 'Press any key to continue...';
-        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
-        
-        return $False
-    }
+    $NetworkProfile = Get-NetConnectionProfile | Select-Object -ExpandProperty NetworkCategory
+
+   # try
+    #{
+       # if ($NetworkProfile -eq "Private"){
+       #     Get-AppXPackage -AllUsers -Name "*$($AppName)*" | Remove-AppxPackage
+       #     return $True
+       # #} elseif ($NetworkProfile -eq "domain") {
+            Get-AppXPackage -Name "*$($AppName)*" | Remove-AppxPackage
+            Get-AppXPackage -AllUsers -Name "*$($AppName)*" | Remove-AppxPackage -AllUsers
+
+            return $True
+       # }
+  # }
+  # catch
+  # {
+  #     Write-Host "Error:: UninstallAppForAllCurrentUsers: $_.Exception.Message`n" -ForegroundColor Red
+  #     Write-Host -NoNewLine 'Press any key to continue...';
+  #     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+  #     
+  #     return $False
+  # }
 }
 
 ##################### MAIN ##############################

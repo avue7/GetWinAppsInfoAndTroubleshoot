@@ -127,7 +127,7 @@ Function UpdateLocalPackageUserInformation ($PackageUserInformation) {
 Function GetUsersAppIsInstalledFor ($AppName) {
     try
     {
-        $PackageUserInformationArray = Get-AppxPackage -AllUser -Name "*$($AppName)*" | Select-Object -ExpandProperty PackageUserInformation
+        $PackageUserInformationArray = Get-AppxPackage -AllUser -Name "*$($AppName)*" | Where-Object {$_.PackageUserInformation -like "*installed*"} | Select-Object -ExpandProperty PackageUserInformation
         return $PackageUserInformationArray
     }
     catch
@@ -148,23 +148,23 @@ $AppName = $args[0]
 
 $PackageUserInfo = GetUsersAppIsInstalledFor $AppName
 
-Write-Host "Packinfo : $PackageUserInfo"
-
 $Success2 = $False
 
 # Debug: to debug uncomment
-$QuitResponse = ""
-while($QuitResponse -ne "q") {
-   Write-Host "quit or not: " -NoNewline
-   $QuitResponse = Read-Host
-}
+#$QuitResponse = ""
+#while($QuitResponse -ne "q") {
+#   Write-Host "quit or not: " -NoNewline
+#   $QuitResponse = Read-Host
+#}
 
-if (($PackageUserInfo -eq $NULL) -or ($PackageUserInfo -eq "NONE")) {
+if ($PackageUserInfo -eq $NULL) {
     Exit 1
+} elseif ($PackageUserInfo -eq "NONE") {
+    Exit 2
 } else {
     $Success2 = UpdateLocalPackageUserInformation $PackageUserInfo
     
     if ($Success2 -eq $False) {
-        Exit 2
+        Exit 3
     }
 }
