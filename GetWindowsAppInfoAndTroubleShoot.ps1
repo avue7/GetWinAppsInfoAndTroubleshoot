@@ -95,6 +95,9 @@ function GetAppsInfo {
        #    GetStagedAppXPackageList $OutputDirectoryPath
        #}
     #}
+
+    # Show user what apps we have available in the appxbundle
+
 }
 
 ## 
@@ -201,6 +204,82 @@ Function GetCurUserAppxPackageList {
 }
 
 ##
+# RemoveAppForCurUser
+# 
+# Removes the app for the current user. Checks to see if the removed function failed 
+# by rechecking to see if app is installed.
+#
+# @param <string> UserPrompt The inputted value from user
+# @return <boolean> True if app was removed and not found in the installed list. False otherwise.
+Function RemoveAppForCurUser ($UserPrompt) {
+    [array]$AppPackageArray = Get-AppxPackage -Name "*$($UserPrompt)*" | Select-Object -ExpandProperty PackageFullName 
+    $GreaterThanOne = CheckForMoreThanOneApp $UserPrompt $AppPackageArray
+
+    if ($GreaterThanOne -eq $True) {
+        return $false
+    }
+
+    try
+    {
+        # Write-Host "     Running command: `'Get-AppxPackage -Name `"*$($UserPrompt)*`" | Remove-AppxPackage'..." -ForegroundColor Cyan
+        Get-AppxPackage -Name "*$($UserPrompt)*" | Remove-AppxPackage
+        
+        Write-Host "     Successfully removed app for <$($AppPackageArray[0])>`n" -ForegroundColor Green
+        return $true
+    }
+    catch
+    {
+        Write-Host "     Error: $($_.Exception.Message)`n" -ForegroundColor Red
+        return $False
+    }
+}
+
+##
+# CheckIfAppExistAtProvision
+#
+# Everytime we edit the list at provision, we always edit the list locally as well.
+# To prevent the many times we need to elevate, because getting the appx provision list
+# requires elevation, we just basically search the local list for a match.
+# 
+# @param <string> AppName The name of the app to search for in Provision.
+# @return <string> FoundAppsArray The array of the apps found at provision local list.
+Function CheckIfAppExistAtProvision ($AppName) {
+    $FullFilePath = "$($OutputDirectoryPath)\$($ProAppListName)"    
+    
+    [array]$AppsArray = Get-Content $FullFilePath
+    $Counter = 0
+    
+    $FoundArray = @()
+
+    foreach ($App in $AppsArray) {
+        if ($App -Match "Total count of provisioned") {
+            continue
+        }
+
+        if ($App -Match $AppName){
+            $Counter += 1
+            $FoundArray += $App
+        }
+    }
+
+    $Counter2 = 0
+
+    if ($FoundArray.Length -gt 0) {
+        Write-Host "     Found the following match for <$($AppName)> staged at provisioned OS level:`n" -ForegroundColor Green
+        
+        foreach ($FoundApp in $FoundArray) {
+            $Counter2 += 1
+            Write-Host "     $($Counter2). $($FoundApp)" -ForegroundColor Yellow    
+        }
+        Write-Host ""
+    } else {
+        Write-Host "     Not found! Did not find a match for <$($AppName)> staged at provisioned level.`n" -ForegroundColor Red
+    }
+
+    return $AppsArray
+}
+
+##
 # CheckIfAppIsInstalledForCurUser
 # 
 # Checks to see if app is installed for the current logged in user.
@@ -218,82 +297,54 @@ Function CheckIfAppIsInstalledForCurUser ($UserPrompt) {
 }
 
 ##
-# RemoveAppForCurUser
-# 
-# Removes the app for the current user. Checks to see if the removed function failed 
-# by rechecking to see if app is installed.
+# InstallAppForCurUser
 #
-# @param <string> UserPrompt The inputted value from user
-# @return <boolean> True if app was removed and not found in the installed list. False otherwise.
-Function RemoveAppForCurUser ($UserPrompt) {
-    $AppPackageName = Get-AppxPackage -Name "*$($UserPrompt)*" | Select-Object -ExpandProperty PackageFullName 
-    
-    try
-    {
-        # Write-Host "     Running command: `'Get-AppxPackage -Name `"*$($UserPrompt)*`" | Remove-AppxPackage'..." -ForegroundColor Cyan
-        Get-AppxPackage -Name "*$($UserPrompt)*" | Remove-AppxPackage
-        
-        Write-Host "     Successfully removed app for <$($AppPackageName)>`n" -ForegroundColor Green
-        return $true
-    }
-    catch
-    {
-        Write-Host "     Error: $($_.Exception.Message)`n" -ForegroundColor Red
-        return $false
-    }
-}
-
-##
-# CheckIfAppExistAtProvision
+# Checks to see if we have the appx bundle at root C drive in the 
+# AppXBundles folder. If exists, then installs that app for current
+# logged in user.
 #
-# Everytime we edit the list at provision, we always edit the list locally as well.
-# To prevent the many times we need to elevate, because getting the appx provision list
-# requires elevation, we just basically search the local list for a match.
-# 
-# @param <string> AppName The name of the app to search for in Provision.
-# @return <string> FoundAppsArray The array of the apps found at provision local list.
-Function CheckIfAppExistAtProvision ($AppName) {
-    $FullFilePath = "$($OutputDirectoryPath)\$($ProAppListName)"    
-    
-    $AppsArray = Get-Content $FullFilePath
-    $FoundFlag = $False
-    $FoundAppsArray = @()
-    $Counter = 0
-
-    foreach ($App in $AppsArray) {
-        if ($App -Match $AppName){
-            Write-Host "     Found a match for <$($AppName)> staged at provisioned OS level: " -ForegroundColor Green -NoNewline
-            Write-Host "<$($App)>`n" -ForegroundColor Yellow
-            $FoundFlag = $True
-            $Counter += 1
-            $FoundAppsArray += $App
-        }
-    }
-
-    if ($FoundFlag -eq $False) {
-        Write-Host "     Not found! No matches were found for <$($AppName)> at the provisioned OS level.`n" -ForegroundColor Red
-        return "NONE"
-    } else {
-        return $FoundAppsArray
-    }
-}
-
+# @param <string> AppName The name of the app to be installed.
 Function InstallAppForCurUser ($AppName) {
     $IsInstalled = CheckIfAppIsInstalledForCurUser $AppName
 
     if ($IsInstalled -eq $False) {
         $AppFolderPath = GetAppFolderPath $AppName
-
-        if ($AppFolderPath -ne "NONE") {
-            $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File | Select-String -Pattern $AppName
-
-            $FullFilePath = "$($AppFolderPath)$($AppFilePath)"
-
+    
+        if ($AppFolderPath -eq "MULTIPLE") {
+             break
+        } elseif ($AppFolderPath -ne "NONE") {
             try 
             {
-                # Write-Host "     Running command: `'Add-AppXPackage -Path $($FullFilePath)`'..." -ForegroundColor Cyan
+                $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File -ErrorAction SilentlyContinue | Select-String -Pattern $AppName 
+            }
+            catch
+            {
+                Write-Host "     Error:: InstallAppForCurUser: $_.Exception.Message`n" -ForegroundColor Red
+                return                
+            }
+    
+            if (($AppFilePath -eq $Null) -or ($AppFilePath -eq "")){
+                Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
+                Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named fully." -ForegroundColor Red 
+                Write-Host "            Ex) `'$($AppXBundleDir)Calculator\Microsoft.WindowsCalculator_XXXX.AppxBundle`'." -ForegroundColor Red
+                Write-Host "            Hint: FIddler4 => APPX bundle link.`n" -ForegroundColor Red
+                return  
+            }
+    
+            $FullFilePath = "$($AppFolderPath)$($AppFilePath)"
+    
+            try 
+            {
                 Add-AppxPackage -Path $FullFilePath
-
+            }
+            catch
+            {
+                Write-Host "     Error:: InstallAppForCurUser: $_.Exception.Message`n" -ForegroundColor Red
+                return    
+            }
+    
+            try 
+            {
                 $AppName = Get-AppxPackage -Name "*$($UserPrompt)*" | Select-Object -ExpandProperty PackageFullName
                 Write-Host "     Successfully installed the app: <$AppName>`n" -Foreground Green
                 return
@@ -306,18 +357,24 @@ Function InstallAppForCurUser ($AppName) {
         } else {
                 Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
                 Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
-                Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link." -ForegroundColor Red
+                Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link.`n" -ForegroundColor Red
                 return
         }
     } else {
         # Write-Host "     App is already installed. Reinstalling using command:" -ForegroundColor Cyan
         # Write-Host "     `'Get-AppxPackage -Name `"*$($AppName)*`" | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register `"$($_.InstallLocation)\AppXManifest.xml`"}`"`'" -ForegroundColor Cyan
-
+        [array]$AppPackageArray = Get-AppxPackage -Name "*$($UserPrompt)*" | Select-Object -ExpandProperty PackageFullName 
+        $GreaterThanOne = CheckForMoreThanOneApp $AppName $AppPackageArray
+    
+        if ($GreaterThanOne -eq $True) {
+            return
+        }
+    
         try
         {
             # Try to install thru traditional way
             Get-AppxPackage -Name "*$($AppName)*" | Foreach {Add-AppxPackage -DisableDevelopmentMode -Register "$($_.InstallLocation)\AppXManifest.xml"}
-
+    
             $AppName = Get-AppxPackage -Name "*$($UserPrompt)*" | Select-Object -ExpandProperty PackageFullName
             Write-Host "     Successfully reinstalled the app: <$AppName>`n" -Foreground Green
             return
@@ -327,7 +384,36 @@ Function InstallAppForCurUser ($AppName) {
             Write-Host "     Error: $($_.Exception.Message)" -ForegroundColor Red
             return
         }
+    
+    }
+}
 
+##
+# CheckForMoreThanOneApp 
+#
+# Checks to see if app array contains more than one app.
+# If it does, we shouldn't process selected command since we may 
+# run into the chance of doing it for other apps that we did not 
+# necessarily want to process.
+#
+# @param <array> AppsArray The array of the apps we want to check for.
+# @param <string> InputAppName The app name from user input.
+# @return <boolean> True if app array is greater than one. False otherwise.
+Function CheckForMoreThanOneApp ($InputAppName, $AppsArray) {
+    if ($AppsArray.Length -gt 1) {
+        Write-Host "     There are more than one app that matches your input of <$($InputAppName)>." -ForegroundColor Red
+        Write-Host "     Please use the list below to help you input a more specific app to process:`n" -ForegroundColor Red
+        
+        $Counter = 0
+
+        foreach ($App in $AppPackageArray) {
+            $Counter += 1
+            Write-Host "     $($Counter). $($App)" -ForegroundColor Cyan
+        }
+        Write-Host ""
+        return $true
+    } else {
+        return $false
     }
 }
 
@@ -339,8 +425,21 @@ Function InstallAppForCurUser ($AppName) {
 # @param <string> AppName The name of the app to search for in the bundle directory.
 # @return <string> "NONE" if no match. Otherwise returns the folder path to a match.
 Function GetAppFolderPath ($AppName) {
-    $FoundFolderName = Get-ChildItem -Path $AppXBundleDir -Name -Directory |  Select-String -Pattern $AppName
+    [array]$FoundFolderName = Get-ChildItem -Path $AppXBundleDir -Name -Directory | Select-String -Pattern $AppName
     
+    if ($FoundFolderName.Length -gt 1) {
+        Write-Host "     There are more than one app folder that matches your input of <$($AppName)>." -ForegroundColor Red
+        Write-Host "     Please use the list below to help you input a more specific app to process:`n" -ForegroundColor Red
+
+        $Counter = 0
+        foreach ($App in $FoundFolderName) {
+            $Counter += 1
+            Write-Host "     $($Counter). $($App)" -ForegroundColor Cyan
+        }
+        Write-Host ""
+        return "MULTIPLE"
+    }
+
     if (($FoundFolderName -ne "") -and ($FoundFolderName -ne $Null)) {
         $FolderPath = "$($AppXBundleDir)$($FoundFolderName)\"
         return $FolderPath
@@ -374,10 +473,18 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             $IsInstalled = CheckIfAppIsInstalledForCurUser $UserPrompt
 
             if ($IsInstalled -eq $true) {
-                Write-Host "     Found! The app below matched <$($UserPrompt)> and is installed for current user <$($CurLoggedInUser)>:" -ForegroundColor Green
+                Write-Host "     Found! The app(s) below matched <$($UserPrompt)> and is installed for current user <$($CurLoggedInUser)>:" -ForegroundColor Green
 
-                $RetVal = Get-AppxPackage -User $CurLoggedInUser -Name "*$($UserPrompt)*"
-                Write-Host "     $($RetVal)`n" -ForegroundColor Yellow
+                $Counter = 0
+
+                $InstalledAppsArray = Get-AppxPackage -User $CurLoggedInUser -Name "*$($UserPrompt)*"
+                
+                foreach ($App in $InstalledAppsArray) {
+                    $Counter += 1
+                    Write-Host "     $($Counter). $($App)" -ForegroundColor Yellow            
+                }
+
+                Write-Host ""
             } elseif ($IsInstalled -eq $false) {
                 Write-Host "     Not Found! There are currently no installed app that matched <$($UserPrompt)> for current user <$($CurLoggedInUser)>.`n" -ForegroundColor Red
             }
@@ -505,7 +612,9 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             # Check if appx bundle exist. If not no point continuing.
             $AppFolderPath = GetAppFolderPath $UserPrompt
 
-            if ($AppFolderPath -ne "NONE") {
+            if ($AppFolderPath -eq "MULTIPLE") {
+                break
+            } elseif ($AppFolderPath -ne "NONE") {
                 $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File | Select-String -Pattern $UserPrompt
 
                 $AppXFullPath = "$($AppFolderPath)$($AppFilePath)"
@@ -532,10 +641,10 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                     Write-Host "     Error: wow, you have not accounted for this error in the script dude!!!`n" -ForegroundColor Red
                 }
             } else {
-                    Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
-                    Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
-                    Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link." -ForegroundColor Red
-                    break
+                Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
+                Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
+                Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link.`n" -ForegroundColor Red
+                break
             }
                 
             break
@@ -570,6 +679,10 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
             } elseif ($LASTEXITCODE -eq 4) {
                 Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
+            } elseif ($LASTEXITCODE -eq 5) {
+                Write-Host "     Not Found! There are no matches for <$($UserPrompt)> staged at the provisioned OS level.`n" -ForegroundColor Red
+            } elseif ($LastEXITCODE -eq 6) {
+                break
             } else {
                 Write-Host "     Error: wow, something is wrong with the script iteself!!!`n" -ForegroundColor Red
             }
@@ -611,8 +724,6 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                     Write-Host "     $($Counter). $($UserInfo)" -ForegroundColor Yellow    
                 }
                 Write-Host ""
-                Write-Host "     This workstation currently has <"
-
             } elseif ($LASTEXITCODE -eq 1) {
                 Write-Host "     Not found! No installed app matched <$UserPrompt>.`n" -ForegroundColor Red 
             } elseif ($LASTEXITCODE -eq 2) {
@@ -626,6 +737,9 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
            
             break           
         }
+
+        # TODO: check this for multiple match results. If multiple match tell the user to narrow it down. 
+        # MAKE SURE YOU CHECK THE INSTALLAPPFORALLUSERS. We need to use the APP BUNDLE FOR THIS INSTEAD.
         "8" {       
            # Get the current working directory so that we can call the correct file. 
            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
@@ -652,6 +766,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
            
            break
         }
+        # TODO: check this for multiple match results. If multiple match tell the user to narrow it down. 
         "9" {
             Write-Host "     Enter the full app name to uninstall for all users of this workstation: " -NoNewline 
             $UserPrompt = Read-Host
@@ -725,7 +840,6 @@ Function StartPrompt {
         Write-Host " an app for the current user " -NoNewLine
         Write-Host "<$($CurLoggedInUser)>." -ForegroundColor Yellow
         Write-Host "     ***** Danger Zone: below commands affects all new users *****" -ForegroundColor Red
-        Write-Host "     ***** or current existing users of this workstation.    *****" -ForegroundColor Red
         Write-Host "     (4) - " -NoNewline
         Write-Host "Check" -NoNewline -ForegroundColor Yellow
         Write-Host " if an app is" -NoNewline
@@ -746,6 +860,7 @@ Function StartPrompt {
         Write-Host "provisioned OS level" -NoNewline -ForegroundColor Yellow
         Write-Host " for " -NoNewLine 
         Write-Host "new users." -ForegroundColor Yellow
+        Write-Host "     ***** Danger Zone: below commands affects all existing users *****" -ForegroundColor Red
         Write-Host "     (7) - " -NoNewline
         Write-Host "Check" -NoNewline -ForegroundColor Yellow
         Write-Host " if an app" -NoNewline

@@ -187,7 +187,45 @@ $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 
 $AppName = $args[0]
 
-$AppPackageName = GetPackageName $AppName
+$PromptYN = "y"
+$Counter = 0
+
+While (($PromptYN -eq "y") -or ($PromptYN -eq "Y")) {
+    if ($Counter -ge 1) {
+        Write-Host "     Enter the full app name to remove from the provisioned OS level: " -NoNewline
+        $AppName = Read-Host
+    }
+
+    [array]$AppPackageName = GetPackageName $AppName
+
+    if ($AppPackageName.Length -lt 1) {
+        exit 5
+    } elseif ($AppPackageName.Length -gt 1) {
+        Write-Host "     There are more than one app that matches your input of <$($AppName)>." -ForegroundColor Red
+        Write-Host "     Please use the list below to help you input a more specific app to process:`n" -ForegroundColor Red
+
+        $Counter2 = 0
+        foreach ($App in $AppPackageName) {
+            $Counter2 += 1
+            Write-Host "     $($Counter2). $($App)" -ForegroundColor Cyan
+        }
+
+        write-Host ""
+
+        Write-Host "     Would you like to re-try (y/n): " -NoNewline
+        $PromptYN = Read-Host
+        Write-Host " "
+
+        if (($PromptYN -eq "n") -or ($PromptYN -eq "N")) {
+            Exit 6
+        }
+    } else {
+        break
+    }
+
+    $Counter += 1
+}
+
 
 # Exit with code 5 if not found. No point continuing. Caller will 
 # handle code.
@@ -196,7 +234,7 @@ if ($($AppPackageName) -eq "" -or $AppPackageName -eq $null) {
 }
 
 # Remove app to provisioned OS level
-$Success2 = RemoveAppFromProvisionLevel $AppPackageName
+$Success2 = RemoveAppFromProvisionLevel $AppPackageName[0]
 
 # Get Provisioned (STAGED) apps in the OS level and output to text file. 
 $Success3 = UpdateAppxProvisionPackageLocalList
