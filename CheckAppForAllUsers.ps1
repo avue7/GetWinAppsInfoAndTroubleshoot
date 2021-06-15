@@ -128,7 +128,7 @@ Function GetUsersAppIsInstalledFor ($AppName) {
     try
     {
         $PackageUserInformationArray = Get-AppxPackage -AllUser -Name "*$($AppName)*" | Select-Object -ExpandProperty PackageUserInformation
-        return $PackageUserInformation
+        return $PackageUserInformationArray
     }
     catch
     {
@@ -147,6 +147,8 @@ $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 $AppName = $args[0]
 
 $PackageUserInfo = GetUsersAppIsInstalledFor $AppName
+
+Write-Host "Packinfo : $PackageUserInfo"
 
 $Success2 = $False
 

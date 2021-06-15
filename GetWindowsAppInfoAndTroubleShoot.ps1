@@ -595,21 +595,24 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             # in the app name to search for from input as an argument. 
             & $FilePath -Arg1 $UserPrompt | Out-Null
            
+            # TODO GET CURRENT COUNT OF LOCAL ACCOUNTS AND DISPLAY ON SUCCESS          
+
             ## After elevated script exits check exit code and handle here
             if ($LASTEXITCODE -eq 0) {
                 # Display the app on the list show it here. 
                 $AppInfoFilePath = "$($OutputDirectoryPath)\All_Users_App_Search.txt"
-                $AppsInfoString = Get-Content $AppInfoFilePath
+                $AppsInfoArray = Get-Content $AppInfoFilePath
                 
                 $Counter = 0
 
-                Write-Host "     Found! Below are the following users I found this app installed for:" -ForegroundColor Green
+                Write-Host "     Found! This app is installed for the following user(s):" -ForegroundColor Green
                 foreach ($UserInfo in $AppsInfoArray) {
                     $Counter += 1
                     Write-Host "     $($Counter). $($UserInfo)" -ForegroundColor Yellow    
                 }
-                
                 Write-Host ""
+                Write-Host "     This workstation currently has <"
+
             } elseif ($LASTEXITCODE -eq 1) {
                 Write-Host "     Error: command failed to search the app for all current users.`n" -ForegroundColor Red
             } elseif ($LASTEXITCODE -eq 2) {
