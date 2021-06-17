@@ -1,0 +1,20 @@
+#####################################################################################
+By: Athit Vue 6/7/2021
+Last Update: <enter name and date here if change to this text is needed>
+ 
+*Please edit and put name and date above for documentation of changes. Thanks!
+#####################################################################################
+
+If you cannot install these apps by double-clicking the app and running, this probably means that
+the default app installer is actually not installed or corrupted.
+
+Follow the these steps:
+
+1. Copy and paste the AppInstaller Bundle from Vol2\Install\Microsoft Products\AppXBundles\AppInstaller\Microsoft.DesktopAppInstaller_2020.1111.2238.0_neutral___8wekyb3d8bbwe.AppxBundle
+   to the local disk drive. Copying to the root C drive might be better. 
+
+2. Install this app by running the following command in powershell with elevated permission:
+   Add-AppxPackage -Path "C:\Microsoft.DesktopAppInstaller_2020.1111.2238.0_neutral___8wekyb3d8bbwe.AppxBundle"
+
+3. Now you should be able to go to the AppXBundle folder and install the appx package simply by double-clicking on it and clicking install..
+
