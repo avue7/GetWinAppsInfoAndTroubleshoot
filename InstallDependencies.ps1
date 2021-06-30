@@ -71,9 +71,9 @@ Function OutputTextExist ($FullPath) {
 # Adds message to log file.
 # 
 # @param <string> Message The message to add to the log file.
-# @param <string> OutputDirectoryPath The directory for the log file. 
-Function AddToLog ($Message, $OutputDirectoryPath) {
-    $LogFilePath = "$($OutputDirectoryPath)\Log.txt"
+Function AddToLog ($Message) {
+    $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
+    $LogFilePath = "$CurLogInUserWindowsAppsInfoPath\Log.txt"
     $DateTime = Get-Date
     $MessageWithDateTime = "- $($DateTime): $($Message)"
 
@@ -159,10 +159,10 @@ Function InstallDependencies ($AppDependencyPath, $OutputDirectoryPath) {
     }
     catch
     {
-        $ErrorMessage = "Error:: InstallDependenciesr(): $_.Exception.Message`n" 
+        $ErrorMessage = "Error:: InstallDependencies(): $_.Exception.Message`n" 
         AddToLog $ErrorMessage
         Write-Host "     $ErrorMessage" -ForegroundColor Red
-        return  
+        return $False
     }
 
     try
@@ -174,7 +174,7 @@ Function InstallDependencies ($AppDependencyPath, $OutputDirectoryPath) {
         $ErrorMessage = "Error:: InstallDependencies(): $_.Exception.Message`n" 
         AddToLog $ErrorMessage
         Write-Host "     $ErrorMessage" -ForegroundColor Red
-        return      
+        return $False    
     }
 
     foreach ($DependencyFilePath in $DependencyPaths) {
@@ -187,7 +187,9 @@ Function InstallDependencies ($AppDependencyPath, $OutputDirectoryPath) {
             try 
             {
                 Add-AppxPackage -Path ".\$($DependencyFilePath)"
-                Write-Host "     Successfully install the app <$($DependencyFilePath)>!" -ForegroundColor Green
+                $SuccessMessage = "Successfully install the dependency <$($DependencyFilePath)>!"
+                AddToLog $SuccessMessage
+                Write-Host "     $($SuccessMessage)" -ForegroundColor Green
 
             }
             catch
@@ -195,13 +197,13 @@ Function InstallDependencies ($AppDependencyPath, $OutputDirectoryPath) {
                 $ErrorMessage = "Error:: InstallDependency(): $_.Exception.Message"  
                 AddToLog $ErrorMessage
                 Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red 
-                return    
+                return $False
             }
         }
     }
 
     write-host ""
-    return
+    return $True
 }
 ##################### MAIN ##############################
 
@@ -219,10 +221,10 @@ while($QuitResponse -ne "q" -or $QuitResponse -ne "Q") {
    $QuitResponse = Read-Host
 }
 
-#if (!($Success1) -and !($Success2)) {
-#    exit 3
-#} elseif (!($Success2)) {
-#    exit 2
-#} elseif (!($Success1)) {
-#    exit 1
-#} 
+if (!($Success1) -and !($Success2)) {
+    exit 3
+} elseif (!($Success2)) {
+    exit 2
+} elseif (!($Success1)) {
+    exit 1
+} 

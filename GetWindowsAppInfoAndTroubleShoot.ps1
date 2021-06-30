@@ -249,13 +249,17 @@ Function RemoveAppForCurUser ($UserPrompt) {
 
         Get-AppxPackage -Name "*$($UserPrompt)*" | Remove-AppxPackage
         
-        Write-Host "     Successfully removed app for <$($AppPackageArray[0])>`n" -ForegroundColor Green
+        $SuccessMessage = "Successfully removed app <$($AppPackageArray[0])>"
+        Write-Host "     $($SuccessMessage)`n" -ForegroundColor Green
+        AddToLog $SuccessMessage
+
         return $true
     }
     catch
     {
         $ErrorMessage = "Error: $($_.Exception.Message)"
         Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
         return $False
     }
 }
@@ -422,8 +426,10 @@ Function InstallApp ($AppName, $AppFolderPath) {
 
     foreach ($AppFilePath in $AppFilePaths) {
         if (($AppFilePath -like "*.appxbundle") -Or ($AppFilePath -like "*.msixbundle") -Or ($AppFilePath -like "*.Appx")) {
+            
+            $SplittedAppName = Split-Path -Path $AppFolderPath -Leaf
                             
-            $InstallingMessage = "Installing app <$($AppFolderPath)>..."
+            $InstallingMessage = "Installing app <$($SplittedAppName)>..."
             AddToLog $InstallingMessage
             Write-Host "     $($InstallingMessage)" -ForegroundColor Cyan
                             
@@ -434,11 +440,14 @@ Function InstallApp ($AppName, $AppFolderPath) {
                 $IsInstalled = CheckIfAppIsInstalledForCurUser $AppName
 
                 if ($IsInstalled -eq $True) {
-                    Write-Host "     Successfully install the app <$($AppFilePath)>!`n" -ForegroundColor Green
+                    $SuccessMessage = "Successfully installed the app <$($SplittedAppName)>!"
+                    Write-Host "     $($SuccessMessage)`n" -ForegroundColor Green
+                    AddToLog $SuccessMessage
                     return
                 } else {
-                    $ErrorMessage = "Error: InstallAppForCurUser(): failed to install the app <$($AppFolderPath)>!"
+                    $ErrorMessage = "Error: InstallAppForCurUser(): failed to install the app <$($SplittedAppName)>!"
                     Write-Host "     $ErrorMessage`n" -ForegroundColor Red
+                    AddToLog $ErrorMessage
                     return
                 }
 
@@ -595,6 +604,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
                 
@@ -640,6 +650,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                  
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 
@@ -656,6 +667,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 
@@ -689,6 +701,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 
@@ -732,6 +745,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 
@@ -741,8 +755,6 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             break
         }
         "5" {
-            #### TODO: YOU NEED TO ADD TO LOGS IF ERROR OVER AT ELEVATED SCRIPTS..
-
             $UserPrompt = ""
 
             if (($SkipPromptFlag -eq $Null) -or ($SkipPromptFlag -ne $True)) {
@@ -755,6 +767,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 
@@ -766,7 +779,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             if ($AppFolderPath -eq "MULTIPLE") {
                 break
             } elseif ($AppFolderPath -ne "NONE") {
-                $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File | Select-String -Pattern $UserPrompt
+                $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File -Filter "*xBundle"  | Select-String -Pattern $UserPrompt
 
                 $AppXFullPath = "$($AppFolderPath)$($AppFilePath)"
 
@@ -778,29 +791,6 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 # to execute the scriptblock expression. Without the ampersand, errors. Pass
                 # in the app name to search for from input as an argument. 
                 & $FilePath -Arg1 $UserPrompt -Arg2 $AppXFullPath | Out-Null
-
-                # After elevated script exits check exit code and handle here
-                if ($LASTEXITCODE -eq 0) {
-                    $SuccessMessage = "Successfully added the app to the provisioned OS level for new users"
-                    Write-Host "     $($SuccessMessage).`n" -ForegroundColor Green
-                    AddToLog $SuccessMessage
-                } elseif ($LASTEXITCODE -eq 1) {
-                    $ErrorMessage = "Successfully added the app to the provisioned OS level for new users"
-                    Write-Host "     $($ErrorMessage).`n" -ForegroundColor Red 
-                    AddToLog $ErrorMessage
-                } elseif ($LASTEXITCODE -eq 2) {
-                    $ErrorMessage = "Error: success at add/stage to provisioned OS level but failed to update local list"
-                    Write-Host "     $($ErrorMessage).`n" -ForegroundColor Red
-                    AddToLog $ErrorMessage
-                } elseif ($LASTEXITCODE -eq 3) {
-                    $ErrorMessage = "Error: success at add/stage to provisioned OS level but failed to update local list"
-                    Write-Host "     $($ErrorMessage).`n" -ForegroundColor Red
-                    AddToLog $ErrorMessage
-                } else {
-                    $ErrorMessage = "Error: success at add/stage to provisioned OS level but failed to update local list"
-                    Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
-                    AddToLog $ErrorMessage
-                }
             } else {
                 Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
                 Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
@@ -812,16 +802,18 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             break
         }
         "6" {
+            # TODO: AS OF 6/30/2021...Need to check elevated file script and outputs.
             Write-Host "     Enter the full app name to remove from the provisioned OS level: " -NoNewline 
             $UserPrompt = Read-Host
             Write-Host ""
 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 
-            ### TODO: YOU ARE HERE YOU NEED TO ADD ERROR MESSAGES TO LOG!!!!
+            AddToLog "Option 6 selected: removing app from provisioned OS level..."
 
             # Get the current working directory so that we can call the correct file. 
             $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
@@ -831,26 +823,6 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             # to execute the scriptblock expression. Without the ampersand, errors. Pass
             # in the app name to search for from input as an argument. 
             & $FilePath -Arg1 $UserPrompt | Out-Null
-
-            # After elevated script exits check exit code and handle here
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "     Successfully deleted the app from the provisioned OS level for new users.`n" -ForegroundColor Green
-            } elseif ($LASTEXITCODE -eq 1) {
-                Write-Host "     Error: command failed to package name for <$($UserPrompt)>.`n" -ForegroundColor Red 
-            } elseif ($LASTEXITCODE -eq 2) {
-                Write-Host "     Error: command failed to remove package from provisioned OS level.`n" -ForegroundColor Red
-            } elseif ($LASTEXITCODE -eq 3) {
-                Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
-            } elseif ($LASTEXITCODE -eq 4) {
-                Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red
-            } elseif ($LASTEXITCODE -eq 5) {
-                Write-Host "     Not Found! There are no matches for <$($UserPrompt)> staged at the provisioned OS level.`n" -ForegroundColor Red
-            } elseif ($LastEXITCODE -eq 6) {
-                break
-            } else {
-                Write-Host "     Error: wow, something is wrong with the script iteself!!!`n" -ForegroundColor Red
-            }
-
             break
         }
         "7" {
@@ -860,6 +832,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 
@@ -904,7 +877,14 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
         # TODO: check this for multiple match results. If multiple match tell the user to narrow it down. 
         # MAKE SURE YOU CHECK THE INSTALLAPPFORALLUSERS. We need to use the APP BUNDLE FOR THIS INSTEAD.
-        "8" {       
+        "8" {
+        
+            if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
+                $UserPrompt = ""
+                AddToLog "User escaped..."
+                continue
+            }
+               
            # Get the current working directory so that we can call the correct file. 
            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
            $FilePath = "$CurrentWorkingDirectory\InstallAppForAllUsers.ps1"
@@ -938,6 +918,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
 
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
+                AddToLog "User escaped..."
                 continue
             }
 

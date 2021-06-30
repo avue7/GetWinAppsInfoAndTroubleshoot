@@ -11,7 +11,7 @@
 # 6/13/2021
 #
 # @Last Updated
-# 6/14/2021
+# 6/30/2021
 ##
 
 # Retrieving the passed in argument
@@ -47,6 +47,40 @@ if (!
 			| %{ $_ }
 		) `
 		-Verb RunAs -PassThru -Wait
+    
+    # After elevated script exits check exit code and handle here
+    if ($Process.ExitCode -eq 0) {
+        $SuccessMessage = "Successfully deleted the app from the provisioned OS level for new users."
+        Write-Host "     $SuccessMessage`n" -ForegroundColor Green
+        AddToLog $SuccessMessage
+    } elseif ($Process.ExitCode -eq 1) {
+        $ErrorMessage = "Error: command failed to package name for <$($UserPrompt)>."
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red 
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 2) {
+        $ErrorMessage = "Error: command failed to remove package from provisioned OS level."
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 3) {
+        $ErrorMessage = "Error: elevated script failed to do anything."
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red   
+        AddToLog $ErrorMessage             
+    } elseif ($Process.ExitCode -eq 4) {
+        $ErrorMessage = "Error: elevated script failed to do anything."
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 5) {
+        $ErrorMessage = "Not Found! There are no matches for <$($UserPrompt)> staged at the provisioned OS level."
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 6) {
+        break
+    } else {
+        $ErrorMessage = "Error: wow, something is wrong with the script iteself!!!"
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    }
+
 	exit $Process.ExitCode
 }
 
@@ -62,6 +96,23 @@ if (!
 Function OutputTextExist ($FullPath) {
     if (Test-Path -Path $FullPath) {
         Remove-Item -Path $FullPath
+    }
+}
+
+##
+# AddToLog
+#
+# Adds message to log file.
+# 
+# @param <string> Message The message to add to the log file.
+Function AddToLog ($Message) {
+    $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
+    $LogFilePath = "$CurLogInUserWindowsAppsInfoPath\Log.txt"
+    $DateTime = Get-Date
+    $MessageWithDateTime = "- $($DateTime): $($Message)"
+
+    if (($Message -ne $NULL) -or ($Message -ne "")) {
+        Write-Output $MessageWithDateTime | Out-File -FilePath $LogFilePath -Append
     }
 }
 
@@ -150,7 +201,9 @@ Function GetPackageName ($AppName) {
         # user can at least see what the error message return is before going back to the calling script. 
         # For simplicity, well just return false and parse it at the main script without getting the 
         # actual error. Keep this block and next line for future implementation if needed.
-        Write-Host "Error:: GetPackageName: $_.Exception.Message`n" -ForegroundColor Red
+        $ErrorMessage = "Error:: GetPackageName(): $_.Exception.Message"
+        Write-Host "$ErrorMessage`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
         
@@ -173,7 +226,9 @@ Function RemoveAppFromProvisionLevel ($AppPackageName) {
     }
     catch 
     {
-        Write-Host "Error:: RemoveAppFromProvisionLevel: $_.Exception.Message`n" -ForegroundColor Red
+        $ErrorMessage = "Error:: RemoveAppFromProvisionLevel(): $_.Exception.Message"
+        Write-Host "$ErrorMessage`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
 

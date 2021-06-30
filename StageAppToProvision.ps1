@@ -11,7 +11,7 @@
 # 6/11/2021
 #
 # @Last Updated
-# 6/14/2021
+# 6/30/2021
 ##
 
 # Retrieving te passed in argument
@@ -39,7 +39,7 @@ if (!
 	)
 ) {
 	#elevate script and exit current non-elevated runtime
-	$Proces = Start-Process `
+	$Process = Start-Process `
 		-FilePath 'powershell' `
 		-ArgumentList (
 			#flatten to single array
@@ -47,6 +47,33 @@ if (!
 			| %{ $_ }
 		) `
 		-Verb RunAs -PassThru -Wait
+
+    # Split the folder path into sections. User -leaf param to keep only ending section.
+    $SplittedAppName = Split-Path -Path $AppFolderPath -Leaf
+
+    # After elevated script exits check exit code and handle here
+    if ($Process.ExitCode -eq 0) {
+        $SuccessMessage = "Successfully added the app <$($SplittedAppName)> to the provisioned OS level for new users"
+        Write-Host "     $($SuccessMessage).`n" -ForegroundColor Green
+        AddToLog $SuccessMessage
+    } elseif ($Process.ExitCode -eq 1) {
+        $ErrorMessage = "Error: command failed to add <$($SplittedAppName)> app to provisioned OS level."
+        Write-Host "     $($ErrorMessage).`n" -ForegroundColor Red 
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 2) {
+        $ErrorMessage = "Error: success at add/stage to provisioned OS level but failed to update local list"
+        Write-Host "     $($ErrorMessage).`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 3) {
+        $ErrorMessage = "Error: elevated script failed to do anything."
+        Write-Host "     $($ErrorMessage).`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    } else {
+        $ErrorMessage = "Error: wow, you have not accounted for this error in the script dude!!!"
+        Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    }
+
 	exit $Process.ExitCode
 }
 
@@ -62,6 +89,23 @@ if (!
 Function OutputTextExist ($FullPath) {
     if (Test-Path -Path $FullPath) {
         Remove-Item -Path $FullPath
+    }
+}
+
+##
+# AddToLog
+#
+# Adds message to log file.
+# 
+# @param <string> Message The message to add to the log file.
+Function AddToLog ($Message) {
+    $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
+    $LogFilePath = "$CurLogInUserWindowsAppsInfoPath\Log.txt"
+    $DateTime = Get-Date
+    $MessageWithDateTime = "- $($DateTime): $($Message)"
+
+    if (($Message -ne $NULL) -or ($Message -ne "")) {
+        Write-Output $MessageWithDateTime | Out-File -FilePath $LogFilePath -Append
     }
 }
 
@@ -104,7 +148,7 @@ Function UpdateAppxProvisionPackageLocalList {
     } 
     catch 
     {
-        Write-Host "Error:: UpdateAppXProvisionPackageLocalList: $_.Exception.Message`n" -ForegroundColor Red
+        Write-Host "Error:: UpdateAppXProvisionPackageLocalList(): $_.Exception.Message`n" -ForegroundColor Red
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
         return $false
@@ -140,21 +184,29 @@ Function UpdateAppxProvisionPackageLocalList {
 Function AddAppToProvisionLevel ($AppxBundlePath) {
     try
     {
-        Add-AppxProvisionedPackage -Online -SkipLicense -PackagePath $AppxBundlePath
+        Add-AppxProvisionedPackage -Online -SkipLicense -PackagePath $AppxBundlePath -ErrorAction Inquire
         return $True
     }
     catch 
     {
-        Write-Host "Error:: AddAppToProvisionLevel: $_.Exception.Message`n" -ForegroundColor Red
+        $ErrorMessage = "Error:: AddAppToProvisionLevel(): $_.Exception.Message"
+        Write-Host "$ErrorMessage`n" -ForegroundColor Red
+
+        AddToLog $ErrorMessage
+
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+
         return $False
     }
 }
 
 ##################### MAIN ##############################
+$CurLoggedInUser = Get-WmiObject -class Win32_ComputerSystem | Select-Object -ExpandProperty Username
+$CurLoggedInUserArray = $CurLoggedInUser.split("\")
+$CurLoggedInUserName = $CurLoggedInUserArray[1]
 
-$OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
+$OutputDirectoryPath = "C:\Users\$($CurLoggedInUserName)\Desktop\WindowsAppsInfo"
 
 $AppName = $args[0]
 $AppxBundlePath = $args[1]
