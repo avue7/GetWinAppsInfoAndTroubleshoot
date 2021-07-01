@@ -802,7 +802,6 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             break
         }
         "6" {
-            # TODO: AS OF 6/30/2021...Need to check elevated file script and outputs.
             Write-Host "     Enter the full app name to remove from the provisioned OS level: " -NoNewline 
             $UserPrompt = Read-Host
             Write-Host ""

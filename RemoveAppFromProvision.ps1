@@ -50,7 +50,8 @@ if (!
     
     # After elevated script exits check exit code and handle here
     if ($Process.ExitCode -eq 0) {
-        $SuccessMessage = "Successfully deleted the app from the provisioned OS level for new users."
+        #$FoundAppName = Get-Variable -Name ProAppName
+        $SuccessMessage = "Successfully deleted the app <$($UserPrompt)> from the provisioned OS level for new users."
         Write-Host "     $SuccessMessage`n" -ForegroundColor Green
         AddToLog $SuccessMessage
     } elseif ($Process.ExitCode -eq 1) {
@@ -272,6 +273,7 @@ While (($PromptYN -eq "y") -or ($PromptYN -eq "Y")) {
         Write-Host " "
 
         if (($PromptYN -eq "n") -or ($PromptYN -eq "N")) {
+            AddToLog "User escaped..."
             Exit 6
         }
     } else {
@@ -287,6 +289,8 @@ While (($PromptYN -eq "y") -or ($PromptYN -eq "Y")) {
 if ($($AppPackageName) -eq "" -or $AppPackageName -eq $null) {
     exit 5   
 }
+
+#Set-Variable -Name ProAppName -Value "$($AppPackageName[0])" -Scope 1
 
 # Remove app to provisioned OS level
 $Success2 = RemoveAppFromProvisionLevel $AppPackageName[0]
