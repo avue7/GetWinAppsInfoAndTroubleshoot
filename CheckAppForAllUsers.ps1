@@ -47,6 +47,51 @@ if (!
 			| %{ $_ }
 		) `
 		-Verb RunAs -PassThru -Wait
+
+        ## After elevated script exits check exit code and handle here
+        if ($Process.ExitCode -eq 0) {
+           # Display the app on the list show it here. 
+           $AppInfoFilePath = "$($OutputDirectoryPath)\All_Users_App_Search.txt"
+           
+           try
+           {
+                $AppsInfoArray = Get-Content $AppInfoFilePath
+           }
+           catch
+           {
+                $ErrorMessage = "Error:: could not get All_Users_App_Search: $_.Exception.Message"
+                AddToLog $ErrorMessage
+                Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+                exit $Process.ExitCode
+           }
+      
+           $SuccessMessage = "Found! The following app(s) matched your input and is installed for user(s):"
+           Write-Host "     $($SuccessMessage)`n" -ForegroundColor Green
+
+           AddToLog $SuccessMessage
+
+           foreach ($UserInfo in $AppsInfoArray) {
+               $Counter += 1
+               Write-Host "     $($UserInfo)" -ForegroundColor Yellow
+               AddToLog $UserInfo    
+           }
+            Write-Host ""
+        } elseif ($Process.ExitCode -eq 1) {
+            $ErrorMessage = "Not found! No installed app matched <$UserPrompt>."
+            Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+            AddToLog $ErrorMessage 
+        } elseif ($Process.ExitCode -eq 2) {
+            $ErrorMessage = "Error: command failed to search the app for all current users."
+            Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        } elseif ($Process.ExitCode -eq 3) {
+            $ErrorMessage = "Error: command failed to redirect to output file."
+            Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        }  
+        else {
+            $ErrorMessage = "Error: wow, something is wrong in the script itself!!!"
+            Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        }
+
 	exit $Process.ExitCode
 }
 
@@ -62,6 +107,23 @@ if (!
 Function OutputTextExist ($FullPath) {
     if (Test-Path -Path $FullPath) {
         Remove-Item -Path $FullPath
+    }
+}
+
+##
+# AddToLog
+#
+# Adds message to log file.
+# 
+# @param <string> Message The message to add to the log file.
+Function AddToLog ($Message) {
+    $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
+    $LogFilePath = "$CurLogInUserWindowsAppsInfoPath\Log.txt"
+    $DateTime = Get-Date
+    $MessageWithDateTime = "- $($DateTime): $($Message)"
+
+    if (($Message -ne $NULL) -or ($Message -ne "")) {
+        Write-Output $MessageWithDateTime | Out-File -FilePath $LogFilePath -Append
     }
 }
 
@@ -91,27 +153,70 @@ Function GetCurUserWindowsAppInfoPath {
 # 
 # @param <string> PackageUserInformation The package information for the user it is installed for. 
 # @return <boolean> True or false base on success. 
-Function UpdateLocalPackageUserInformation ($PackageUserInformation) {
+Function UpdateLocalPackageUserInformation ($PackageUserAppInfo) {
     $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
     $FullFilePath = "$CurLogInUserWindowsAppsInfoPath\All_Users_App_Search.txt"
 
     OutputTextExist $FullFilePath
     
-    try 
-    {
-        foreach ($Info in $PackageUserInformation) {
-            Write-Output "$($Info)" | Out-File -FilePath $FullFilePath -Append
+    $Counter = 0
+
+    foreach ($AppName in $PackageUserAppInfo.keys) {
+        $Counter += 1
+
+        try
+        {
+            Write-Output "$($Counter). $($AppName)" | Out-File -FilePath $FullFilePath -Append
+        }
+        catch 
+        {
+            $ErrorMessage = "Error:: UpdateLocalPackageUserInformation(): $_.Exception.Message"
+            Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+            AddToLog $ErrorMessage
+            Write-Host -NoNewLine 'Press any key to continue...';
+            $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+            return $False
         }
 
-        return $True
+        if ("$($PackageUserAppInfo[$AppName])" -like "*Installed S*") {
+            $SplitArray = $($PackageUserAppInfo[$AppName]) -Split "installed "
+            
+            foreach ($User in $SplitArray) {
+                try
+                {
+                    Write-Output "$($User)" | Out-File -FilePath $FullFilePath -Append
+                }
+                catch 
+                {
+                    $ErrorMessage = "Error:: UpdateLocalPackageUserInformation(): $_.Exception.Message"
+                    Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+                    AddToLog $ErrorMessage
+                    Write-Host -NoNewLine 'Press any key to continue...';
+                    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+                    return $False
+                }
+                
+            }
+            
+        } else {
+            try
+            {
+                Write-Output "$($PackageUserAppInfo[$AppName])" | Out-File -FilePath $FullFilePath -Append
+            }
+            catch 
+            {
+                $ErrorMessage = "Error:: UpdateLocalPackageUserInformation(): $_.Exception.Message"
+                Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+                AddToLog $ErrorMessage
+                Write-Host -NoNewLine 'Press any key to continue...';
+                $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+                return $False
+            }
+        }
+        Write-Output "" | Out-File -FilePath $FullFilePath -Append    
     }
-    catch 
-    {
-        Write-Host "Error:: UpdateLocalPackageUserInformation: $_.Exception.Message`n" -ForegroundColor Red
-        Write-Host -NoNewLine 'Press any key to continue...';
-        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
-        return $False
-    }
+
+    return $True
 }
 
 ################# SPECIFIC FUNCTION DEFINITIONS ###############
@@ -123,20 +228,32 @@ Function UpdateLocalPackageUserInformation ($PackageUserInformation) {
 # installed for.
 #
 # @param <string> AppName The name of the app to search for. 
-# @return <array> $PackageUserInfomationArray Returns array or string "NONE"
+# @return <dictionary> $PackageUserInfomationArray Returns array or string "NONE"
 Function GetUsersAppIsInstalledFor ($AppName) {
     try
     {
-        $PackageUserInformationArray = Get-AppxPackage -AllUser -Name "*$($AppName)*" | Where-Object {$_.PackageUserInformation -like "*installed*"} | Select-Object -ExpandProperty PackageUserInformation
-        return $PackageUserInformationArray
+        $PackageUserInfoArray = Get-AppxPackage -AllUser -Name "*$($AppName)*" | Where-Object {$_.PackageUserInformation -like "*installed*"}
     }
     catch
     {
-        Write-Host "Error:: GetUserAppIsInstalledFor: $_.Exception.Message`n" -ForegroundColor Red
+        $ErrorMessage = "Error:: GetUserAppIsInstalledFor(): $_.Exception.Message"
+        Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
-        
+        AddToLog $ErrorMessage
         return "NONE"
+    }
+
+    $PackageInfoDictionary = @{}
+
+    if ($PackageUserInfoArray -ne $Null) {
+        foreach ($PackageInfo in $PackageUserInfoArray) {
+            $User = $PackageInfo | Select-Object -ExpandProperty PackageUserInformation
+            $AppName = $PackageInfo | Select-Object -ExpandProperty PackageFullName
+            $PackageInfoDictionary.Add($AppName, $User)
+        }
+        
+        return $PackageInfoDictionary
     }
 }
 
@@ -146,7 +263,7 @@ $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 
 $AppName = $args[0]
 
-$PackageUserInfo = GetUsersAppIsInstalledFor $AppName
+$PackageUserAppDict = GetUsersAppIsInstalledFor $AppName
 
 $Success2 = $False
 
@@ -157,13 +274,12 @@ $Success2 = $False
 #   $QuitResponse = Read-Host
 #}
 
-if ($PackageUserInfo -eq $NULL) {
+if ($PackageUserAppDict -eq $NULL) {
     Exit 1
-} elseif ($PackageUserInfo -eq "NONE") {
+} elseif ($PackageUserAppDict -eq "NONE") {
     Exit 2
 } else {
-    $Success2 = UpdateLocalPackageUserInformation $PackageUserInfo
-    
+    $Success2 = UpdateLocalPackageUserInformation $PackageUserAppDict
     if ($Success2 -eq $False) {
         Exit 3
     }

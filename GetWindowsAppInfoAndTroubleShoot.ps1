@@ -835,6 +835,8 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 continue
             }
 
+            AddToLog "Option 7 selected: searching for <$($UserPrompt)> match staged at provision..." 
+
             # Get the current working directory so that we can call the correct file. 
             $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
             $FilePath = "$CurrentWorkingDirectory\CheckAppForAllUsers.ps1"
@@ -843,34 +845,6 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             # to execute the scriptblock expression. Without the ampersand, errors. Pass
             # in the app name to search for from input as an argument. 
             & $FilePath -Arg1 $UserPrompt | Out-Null
-           
-            # TODO GET CURRENT COUNT OF LOCAL ACCOUNTS AND DISPLAY ON SUCCESS          
-
-            ## After elevated script exits check exit code and handle here
-            if ($LASTEXITCODE -eq 0) {
-                # Display the app on the list show it here. 
-                $AppInfoFilePath = "$($OutputDirectoryPath)\All_Users_App_Search.txt"
-                $AppsInfoArray = Get-Content $AppInfoFilePath
-                
-                $Counter = 0
-
-                Write-Host "     Found! This app is installed for the following user(s):" -ForegroundColor Green
-                foreach ($UserInfo in $AppsInfoArray) {
-                    $Counter += 1
-                    Write-Host "     $($Counter). $($UserInfo)" -ForegroundColor Yellow    
-                }
-                Write-Host ""
-            } elseif ($LASTEXITCODE -eq 1) {
-                Write-Host "     Not found! No installed app matched <$UserPrompt>.`n" -ForegroundColor Red 
-            } elseif ($LASTEXITCODE -eq 2) {
-                Write-Host "     Error: command failed to search the app for all current users.`n" -ForegroundColor Red
-            } elseif ($LASTEXITCODE -eq 3) {
-                Write-Host "     Error: command failed to redirect to output file.`n" -ForegroundColor Red
-            }  
-            else {
-                Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
-            }
-           
             break           
         }
 
@@ -948,6 +922,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
         }
         "test" {
             Write-Host "testing"
+            $UserPrompt = "testing"
             # Get the current working directory so that we can call the correct file. 
             $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
             $FilePath = "$CurrentWorkingDirectory\test.ps1"
@@ -955,11 +930,8 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
             # to execute the scriptblock expression. Without the ampersand, errors. Pass
             # in the app name to search for from input as an argument. 
-            & $FilePath -Arg1 $UserPrompt $result
+            & $FilePath -Arg1 $UserPrompt
              
-            $resultval = Get-Variable -Name "result" 
-
-            Write-Host $resultval.value
 
         }
         default { break } 
