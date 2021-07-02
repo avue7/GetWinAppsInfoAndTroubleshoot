@@ -18,7 +18,7 @@
 ##
 
 ######################### GLOABL VARIABLES ############################
-$CurLoggedInUser = Get-WmiObject -class Win32_ComputerSystem | Select-Object -ExpandProperty Username
+$CurLoggedInUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 $CurLoggedInUserArray = $CurLoggedInUser.split("\")
 $CurLoggedInUserName = $CurLoggedInUserArray[1]
 $CurWorkstationName = $CurLoggedInUserArray[0]
