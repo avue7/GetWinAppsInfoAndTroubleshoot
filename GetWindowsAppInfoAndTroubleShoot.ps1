@@ -515,11 +515,10 @@ Function InstallAppForCurUser ($AppName) {
             }
         }
     } else {
-            Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
-            Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
-            Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link.`n" -ForegroundColor Red
-
-            AddToLog "There were no matches for <$($AppName)> in appxbundles directory."
+            Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory." -ForegroundColor Red 
+            Write-Host "            Add the appx bundle to `'$($AppXBundleDir)`' and re-run. App folder " -ForegroundColor Red
+            Write-Host "            names in this directory must be namedfully.`n" -ForegroundColor Red
+            AddToLog "Error: There is no match for <$($UserPrompt)> in the AppXBundles directory"
 
             return
     }
@@ -543,7 +542,7 @@ Function CheckForMoreThanOneApp ($InputAppName, $AppsArray) {
         
         $Counter = 0
 
-        foreach ($App in $AppPackageArray) {
+        foreach ($App in $AppsArray) {
             $Counter += 1
             Write-Host "     $($Counter). $($App)" -ForegroundColor Cyan
         }
@@ -634,10 +633,10 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
         "1" {
             # If appx bundle dir does not exist, no point continuing.
             if (!(Test-Path -Path $AppXBundleDir)) {
-                Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
-                Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
-                Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
-                Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
+                Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory." -ForegroundColor Red 
+                Write-Host "            Add the appx bundle to `'$($AppXBundleDir)`'  " -ForegroundColor Red
+                Write-Host "            and re-run. App folder names in this directory must be named fully.`n" -ForegroundColor Red
+                AddToLog "Error: There is no match for <$($UserPrompt)> in the AppXBundles directory"
 
                 AddToLog "Option 1 selected: Trying to install. Error: could not find AppXBundle directory."
 
@@ -688,10 +687,10 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
         "3" {
             # If appx bundle dir does not exist, no point continuing.
             if (!(Test-Path -Path $AppXBundleDir)) {
-                Write-Host "     Error: No such directoy `'AppXBundles`' exists in the root `'C:\`' drive." -ForegroundColor Red
-                Write-Host "            In order for installation to happen you must copy and paste the directory" -ForegroundColor Red
-                Write-Host "            at `'Vol2\Install\Microsoft Products\AppXBundles`' to the root `'C:\`' drive." -ForegroundColor Red
-                Write-Host "            Please do this first then re-run this script to install." -ForegroundColor Red
+                Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory." -ForegroundColor Red 
+                Write-Host "            Add the appx bundle to `'$($AppXBundleDir)`'  " -ForegroundColor Red
+                Write-Host "            and re-run. App folder names in this directory must be named fully.`n" -ForegroundColor Red
+                AddToLog "Error: There is no match for <$($UserPrompt)> in the AppXBundles directory"
                 break
             }
 
@@ -777,7 +776,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             AddToLog "Option 5 selected: adding/staging app to provision level..."
 
             if ($AppFolderPath -eq "MULTIPLE") {
-                break
+                return $False
             } elseif ($AppFolderPath -ne "NONE") {
                 $AppFilePath = Get-ChildItem -Path $AppFolderPath -Name -File -Filter "*xBundle"  | Select-String -Pattern $UserPrompt
 
@@ -792,11 +791,11 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 # in the app name to search for from input as an argument. 
                 & $FilePath -Arg1 $UserPrompt -Arg2 $AppXFullPath | Out-Null
             } else {
-                Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory. Add the appx bundle" -ForegroundColor Red 
-                Write-Host "            to `'$($AppXBundleDir)`' and re-run. App folder names in this directory must be named" -ForegroundColor Red
-                Write-Host "            fully. Ex) `'$($AppXBundleDir)Calculator\`'. Hint: FIddler4 => APPX bundle link.`n" -ForegroundColor Red
+                Write-Host "     Error: There is no match for <$($UserPrompt)> in the AppXBundles directory." -ForegroundColor Red 
+                Write-Host "            Add the appx bundle to `'$($AppXBundleDir)`'  " -ForegroundColor Red
+                Write-Host "            and re-run. App folder names in this directory must be named fully.`n" -ForegroundColor Red
                 AddToLog "Error: There is no match for <$($UserPrompt)> in the AppXBundles directory"
-                break
+                return $False
             }
                 
             break
@@ -818,9 +817,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
             $FilePath = "$CurrentWorkingDirectory\RemoveAppFromProvision.ps1"
 
-            # Call the RemoveAppFromProvision script using the ampersand to tell powershell 
-            # to execute the scriptblock expression. Without the ampersand, errors. Pass
-            # in the app name to search for from input as an argument. 
+            # Call script in elevated mode 
             & $FilePath -Arg1 $UserPrompt | Out-Null
             break
         }
@@ -840,50 +837,27 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
             # Get the current working directory so that we can call the correct file. 
             $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
             $FilePath = "$CurrentWorkingDirectory\CheckAppForAllUsers.ps1"
-           
-            # Call the CheckAppForAllUsers script using the ampersand to tell powershell 
-            # to execute the scriptblock expression. Without the ampersand, errors. Pass
-            # in the app name to search for from input as an argument. 
+            
             & $FilePath -Arg1 $UserPrompt | Out-Null
             break           
         }
-
-        # TODO: check this for multiple match results. If multiple match tell the user to narrow it down. 
-        # MAKE SURE YOU CHECK THE INSTALLAPPFORALLUSERS. We need to use the APP BUNDLE FOR THIS INSTEAD.
         "8" {
-        
             if ($UserPrompt -eq "q" -Or $UserPrompt -eq "Q") {
                 $UserPrompt = ""
                 AddToLog "User escaped..."
                 continue
             }
                
+           AddToLog "Option 8 selected: install app for all current users of workstation..."
+
            # Get the current working directory so that we can call the correct file. 
            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
            $FilePath = "$CurrentWorkingDirectory\InstallAppForAllUsers.ps1"
            
-           # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
-           # to execute the scriptblock expression. Without the ampersand, errors. Pass
-           # in the app name to search for from input as an argument. 
+           # Call script in elevated mode
            & $FilePath -Arg1 $AppNameParam | Out-Null
-           
-           ## After elevated script exits check exit code and handle here
-           if ($LASTEXITCODE -eq 0) {
-               Write-Host "     Successfully Install/Reinstall the app for all current users.`n" -ForegroundColor Green
-           } elseif ($LASTEXITCODE -eq 1) {
-               Write-Host "     Error: command failed to install/reinstall the app for all current users.`n" -ForegroundColor Red 
-           } elseif ($LASTEXITCODE -eq 2) {
-               Write-Host "     Error: command failed to update the local list of all installed apps for current user.`n" -ForegroundColor Red
-           } elseif ($LASTEXITCODE -eq 3) {
-               Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
-           } 
-           else {
-               Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
-           }
-           
            break
         }
-        # TODO: check this for multiple match results. If multiple match tell the user to narrow it down. 
         "9" {
             Write-Host "     Enter the full app name to uninstall for all users of this workstation: " -NoNewline 
             $UserPrompt = Read-Host
@@ -895,44 +869,33 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 continue
             }
 
-            # Get the current working directory so that we can call the correct file. 
-            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
-            $FilePath = "$CurrentWorkingDirectory\RemoveAppForAllUsers.ps1"
+            AddToLog "Option 8 selected: install app for all current users of workstation..."
 
-            # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
-            # to execute the scriptblock expression. Without the ampersand, errors. Pass
-            # in the app name to search for from input as an argument. 
-            & $FilePath -Arg1 $UserPrompt | Out-Null
+            $AppsArray = Get-Appxpackage -Name "*$($UserPrompt)*"
 
-            # After elevated script exits check exit code and handle here
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "     Successfully installed the app for all current users.`n" -ForegroundColor Green
-            } elseif ($LASTEXITCODE -eq 1) {
-                Write-Host "     Error: command failed to install the app for all current users.`n" -ForegroundColor Red 
-            } elseif ($LASTEXITCODE -eq 2) {
-                Write-Host "     Error: command failed to update the local list of all installed apps for current user.`n" -ForegroundColor Red
-            } elseif ($LASTEXITCODE -eq 3) {
-                Write-Host "     Error: elevated script failed to do anything.`n" -ForegroundColor Red                
-            } 
-            else {
-                Write-Host "     Error: wow, something is wrong in the script itself!!!`n" -ForegroundColor Red
+            if ((CheckForMoreThanOneApp $UserPrompt $AppsArray) -eq $True) {
+                break;
+            } else {
+                try
+                {
+                    Get-AppXPackage -Name "*$($UserPrompt)*" | Remove-AppxPackage -ErrorAction SilentlyContinue
+                }
+                catch
+                {
+                    $ErrorMessage = "Error:: $_.Exception.Message"
+                    Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+                    AddToLog $ErrorMessage
+                }
+
+                # Get the current working directory so that we can call the correct file. 
+                $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
+                $FilePath = "$CurrentWorkingDirectory\RemoveAppForAllUsers.ps1"
+
+                # Call script in elevated mode 
+                & $FilePath -Arg1 $UserPrompt | Out-Null
             }
 
             break
-        }
-        "test" {
-            Write-Host "testing"
-            $UserPrompt = "testing"
-            # Get the current working directory so that we can call the correct file. 
-            $CurrentWorkingDirectory = Get-Location | Select-Object -ExpandProperty Path
-            $FilePath = "$CurrentWorkingDirectory\test.ps1"
-
-            # Call the RemoveAppForAllUsers script using the ampersand to tell powershell 
-            # to execute the scriptblock expression. Without the ampersand, errors. Pass
-            # in the app name to search for from input as an argument. 
-            & $FilePath -Arg1 $UserPrompt
-             
-
         }
         default { break } 
     }
@@ -1028,11 +991,13 @@ Function StartPrompt {
                 $AppNameParam = Read-Host
                 Write-Host ""
 
-                ProcessCommands $UserPrompt $True $AppNameParam
+                $Error = ProcessCommands $UserPrompt $True $AppNameParam
 
-                $UserPrompt = "8"
-                ProcessCommands $UserPrompt $False $AppNameParam
-                continue
+                if ($Error -ne $False) {
+                    $UserPrompt = "8"
+                    ProcessCommands $UserPrompt $False $AppNameParam
+                    continue
+                }
             } else {
                 ProcessCommands $UserPrompt
                 continue            

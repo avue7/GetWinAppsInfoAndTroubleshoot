@@ -47,6 +47,31 @@ if (!
 			| %{ $_ }
 		) `
 		-Verb RunAs -PassThru -Wait
+
+    # After elevated script exits check exit code and handle here
+    if ($Process.ExitCode -eq 0) {
+        $SuccessMessage = "Successfully uninstalled the app for all current users."
+        Write-Host "     $($SuccessMessage)`n" -ForegroundColor Green
+        AddToLog $SuccessMessage
+    } elseif ($Process.ExitCode -eq 1) {
+        $ErrorMessage = "Error: command failed to uninstall the app for all current users."
+        Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage         
+    } elseif ($Process.ExitCode -eq 2) {
+        $ErrorMessage = "Error: command failed to update the local list of all uninstalled apps for current user."
+        Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 3) {
+        $ErrorMessage = "Error: elevated script failed to do anything."
+        Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage                        
+    } 
+    else {
+        $ErrorMessage = "Error: elevated script failed to do anything."
+        Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    }
+
 	exit $Process.ExitCode
 }
 
@@ -62,6 +87,59 @@ if (!
 Function OutputTextExist ($FullPath) {
     if (Test-Path -Path $FullPath) {
         Remove-Item -Path $FullPath
+    }
+}
+
+##
+# CheckForMoreThanOneApp 
+#
+# Checks to see if app array contains more than one app.
+# If it does, we shouldn't process selected command since we may 
+# run into the chance of doing it for other apps that we did not 
+# necessarily want to process.
+#
+# @param <string> InputAppName The app name from user input.
+# @return <boolean> True if app array is greater than one. False otherwise.
+Function CheckForMoreThanOneApp ($InputAppName) {
+    $AppsArray = Get-AppXPackage -AllUsers -Name "*$($InputAppName)*"
+
+    if ($AppsArray.Length -gt 1) {
+        Write-Host "     There are more than one app that matches your input of <$($InputAppName)>." -ForegroundColor Red
+        Write-Host "     Please use the list below to help you input a more specific app to process:`n" -ForegroundColor Red
+        
+        $Counter = 0
+
+        foreach ($App in $AppsArray) {
+            $Counter += 1
+            Write-Host "     $($Counter). $($App)" -ForegroundColor Cyan
+        }
+
+        AddToLog "There were more than one match for <$($InputAppName)>."
+
+        Write-Host ""
+
+        Write-Host -NoNewLine 'Press any key to continue...';
+        $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+        exit 1
+    } else {
+        return $false
+    }
+}
+
+##
+# AddToLog
+#
+# Adds message to log file.
+# 
+# @param <string> Message The message to add to the log file.
+Function AddToLog ($Message) {
+    $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
+    $LogFilePath = "$CurLogInUserWindowsAppsInfoPath\Log.txt"
+    $DateTime = Get-Date
+    $MessageWithDateTime = "- $($DateTime): $($Message)"
+
+    if (($Message -ne $NULL) -or ($Message -ne "")) {
+        Write-Output $MessageWithDateTime | Out-File -FilePath $LogFilePath -Append
     }
 }
 
@@ -104,7 +182,9 @@ Function UpdateCurrentUserInstalledAppsLocalList {
     }
     catch 
     {
-        Write-Host "Error:: UpdateCurrentUserInstalledAppsLocalList: $_.Exception.Message`n" -ForegroundColor Red
+        $ErrorMessage = "Error:: UpdateCurrentUserInstalledAppsLocalList(): $_.Exception.Message"
+        Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
         Write-Host "Error: $($_.Exception.Message)"
@@ -143,10 +223,38 @@ Function UninstallAppForAllCurrentUsers ($AppName) {
        #     Get-AppXPackage -AllUsers -Name "*$($AppName)*" | Remove-AppxPackage
        #     return $True
        # #} elseif ($NetworkProfile -eq "domain") {
-            Get-AppXPackage -Name "*$($AppName)*" | Remove-AppxPackage
-            Get-AppXPackage -AllUsers -Name "*$($AppName)*" | Remove-AppxPackage -AllUsers
+      #try
+      #{
+      #     Get-AppXPackage -Name "*$($AppName)*" | Remove-AppxPackage
+      #}
+      #catch
+      #{
+      #     $ErrorMessage = "Error:: UninstallAppForAllCurrentUsers(): $_.Exception.Message"
+      #     Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+      #     AddToLog $ErrorMessage
+      #     Write-Host -NoNewLine 'Press any key to continue...';
+      #     $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+      #      
+      #     return $False
+      #}
 
-            return $True
+       try
+       {
+            Get-AppXPackage -AllUsers -Name "*$($AppName)*" | Remove-AppxPackage -AllUsers
+       }
+       catch
+       {
+            $ErrorMessage = "Error:: UninstallAppForAllCurrentUsers(): $_.Exception.Message"
+            Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+            AddToLog $ErrorMessage
+            Write-Host -NoNewLine 'Press any key to continue...';
+            $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
+             
+            return $False
+       } 
+            
+
+        return $True
        # }
   # }
   # catch
@@ -164,6 +272,8 @@ Function UninstallAppForAllCurrentUsers ($AppName) {
 $OutputDirectoryPath = "$env:USERPROFILE\Desktop\WindowsAppsInfo"
 
 $AppName = $args[0]
+
+CheckForMoreThanOneApp $AppName 
 
 $Success1 = UninstallAppForAllCurrentUsers $AppName
 $Success2 = UpdateCurrentUserInstalledAppsLocalList

@@ -47,6 +47,30 @@ if (!
 			| %{ $_ }
 		) `
 		-Verb RunAs -PassThru -Wait
+
+    ## After elevated script exits check exit code and handle here
+    if ($Process.ExitCode -eq 0) {
+        $SuccessMessage = "Successfully Install/Reinstall the app for all current users."
+        Write-Host "     $($SuccessMessage)`n" -ForegroundColor Green
+        AddToLog $SuccessMessage
+    } elseif ($Process.ExitCode -eq 1) {
+        $ErrorMessage = "Error: command failed to install/reinstall the app for all current users."
+        Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red 
+        AddToLog $ErrorMessage
+    } elseif ($Process.ExitCode -eq 2) {
+        $ErrorMessage = "Error: command failed to update the local list of all installed apps for current user."
+        Write-Host "     $($ErrorMessage)`n" -ForegroundColor Red
+    } elseif ($Process.ExitCode -eq 3) {
+        $ErrorMessage = "Error: elevated script failed to do anything."
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red  
+        AddToLog $ErrorMessage              
+    } 
+    else {
+        $ErrorMessage = "Error: wow, something is wrong in the script itself!!!"
+        Write-Host "     $ErrorMessage`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
+    }
+
 	exit $Process.ExitCode
 }
 
@@ -62,6 +86,23 @@ if (!
 Function OutputTextExist ($FullPath) {
     if (Test-Path -Path $FullPath) {
         Remove-Item -Path $FullPath
+    }
+}
+
+##
+# AddToLog
+#
+# Adds message to log file.
+# 
+# @param <string> Message The message to add to the log file.
+Function AddToLog ($Message) {
+    $CurLogInUserWindowsAppsInfoPath = GetCurUserWindowsAppInfoPath
+    $LogFilePath = "$CurLogInUserWindowsAppsInfoPath\Log.txt"
+    $DateTime = Get-Date
+    $MessageWithDateTime = "- $($DateTime): $($Message)"
+
+    if (($Message -ne $NULL) -or ($Message -ne "")) {
+        Write-Output $MessageWithDateTime | Out-File -FilePath $LogFilePath -Append
     }
 }
 
@@ -104,10 +145,10 @@ Function UpdateCurrentUserInstalledAppsLocalList {
     }
     catch 
     {
-        Write-Host "Error:: UpdateCurrentUserInstalledAppsLocalList: $_.Exception.Message`n" -ForegroundColor Red
+        $ErrorMessage = "Error:: UpdateCurrentUserInstalledAppsLocalList: $_.Exception.Message"
+        Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
-        Write-Host "Error: $($_.Exception.Message)"
         return $false  
     }
 
@@ -142,7 +183,9 @@ Function InstallAppForAllCurrentUsers ($AppName) {
     }
     catch
     {
-        Write-Host "Error:: InstallAppForAllCurrentUsers: $_.Exception.Message`n" -ForegroundColor Red
+        $ErrorMessage = "Error:: InstallAppForAllCurrentUsers: $_.Exception.Message"
+        Write-Host "$($ErrorMessage)`n" -ForegroundColor Red
+        AddToLog $ErrorMessage
         Write-Host -NoNewLine 'Press any key to continue...';
         $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
         
