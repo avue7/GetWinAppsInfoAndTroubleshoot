@@ -14,7 +14,7 @@
 # 6/1/2021 
 #
 # @Last Updated:
-# 6/14/2021
+# 7/2/2021
 ##
 
 ######################### GLOABL VARIABLES ############################
@@ -474,6 +474,18 @@ Function InstallApp ($AppName, $AppFolderPath) {
 Function InstallAppForCurUser ($AppName) {
     $AppFolderPath = GetAppFolderPath $AppName
 
+    try
+    {
+        $TempParentLoc = Get-Location | Select-Object -ExpandProperty Path
+    }
+    catch
+    {
+        $ErrorMessage = "Error:: InstallAppForCurUser(): $_.Exception.Message`n" 
+        AddToLog $ErrorMessage
+        Write-Host "     $ErrorMessage" -ForegroundColor Red
+        return            
+    }
+
     if ($AppFolderPath -eq "MULTIPLE") {
             break
     } elseif ($AppFolderPath -ne "NONE") {
@@ -486,6 +498,18 @@ Function InstallAppForCurUser ($AppName) {
 
             InstallDependencies $AppDependencyFolderPath
             InstallApp $AppName $AppFolderPath
+
+            try
+            {
+                Set-Location $TempParentLoc
+            }
+            catch
+            {
+                $ErrorMessage = "Error:: InstallAppForCurUser(): $_.Exception.Message`n" 
+                AddToLog $ErrorMessage
+                Write-Host "     $ErrorMessage" -ForegroundColor Red
+                return      
+            }
         }
         else {
             $ErrorMessage = "Error:: InstallAppForCurUser(): a dependency folder does not exist for this app!"
@@ -511,6 +535,19 @@ Function InstallAppForCurUser ($AppName) {
                 return
             } else {
                 InstallApp $AppName $AppFolderPath
+
+                try
+                {
+                    Set-Location $TempParentLoc
+                }
+                catch
+                {
+                    $ErrorMessage = "Error:: InstallAppForCurUser(): $_.Exception.Message`n" 
+                    AddToLog $ErrorMessage
+                    Write-Host "     $ErrorMessage" -ForegroundColor Red
+                    return      
+                }
+
                 return
             }
         }
@@ -869,7 +906,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 continue
             }
 
-            AddToLog "Option 8 selected: install app for all current users of workstation..."
+            AddToLog "Option 9 selected: uninstall app for all current users of workstation..."
 
             $AppsArray = Get-Appxpackage -Name "*$($UserPrompt)*"
 
@@ -892,7 +929,7 @@ Function ProcessCommands ($CommandNumber, $SkipPromptFlag, $AppNameParam) {
                 $FilePath = "$CurrentWorkingDirectory\RemoveAppForAllUsers.ps1"
 
                 # Call script in elevated mode 
-                & $FilePath -Arg1 $UserPrompt | Out-Null
+                & $FilePath -Arg1 $UserPrompt -Arg2 $AppsArray | Out-Null
             }
 
             break

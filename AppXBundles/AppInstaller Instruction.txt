@@ -10,11 +10,16 @@ the default app installer is actually not installed or corrupted.
 
 Follow the these steps:
 
-1. Copy and paste the AppInstaller Bundle from Vol2\Install\Microsoft Products\AppXBundles\AppInstaller\Microsoft.DesktopAppInstaller_2020.1111.2238.0_neutral___8wekyb3d8bbwe.AppxBundle
+1. Copy and paste the AppInstaller Bundle directory from Vol2\Install\Microsoft Products\AppXBundles\Microsoft.DesktopAppInstaller_XXXX\
    to the local disk drive. Copying to the root C drive might be better. 
 
 2. Install this app by running the following command in powershell with elevated permission:
-   Add-AppxPackage -Path "C:\Microsoft.DesktopAppInstaller_2020.1111.2238.0_neutral___8wekyb3d8bbwe.AppxBundle"
+   Add-AppxPackage -Path "C:\Microsoft.DesktopAppInstaller_2021.618.1855.0_neutral___8wekyb3d8bbwe\Microsoft.DesktopAppInstaller_2021.618.1855.0_neutral___8wekyb3d8bbwe.Msixbundle"
 
-3. Now you should be able to go to the AppXBundle folder and install the appx package simply by double-clicking on it and clicking install..
+3. If it complains about dependency then you must install it first:
+   Add-AppxPackage -Path "C:\Microsoft.DesktopAppInstaller_2020.1111.2238.0\Dependency\Microsoft.VCLibs.140.00.UWPDesktop_14.0.30035.0_x64__8wekyb3d8bbwe.Appx"
+
+4. Run step 2.
+
+5. Now you should be able to go to the AppXBundle folder and install the appx package simply by double-clicking on it and clicking install..
 

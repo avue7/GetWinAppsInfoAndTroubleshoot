@@ -15,7 +15,7 @@
 ##
 
 # Retrieving the passed in argument
-param($Arg1)
+param($Arg1, $Arg2)
 
 # Set the argument to array variable
 $args = @($Arg1)
@@ -50,7 +50,7 @@ if (!
 
     # After elevated script exits check exit code and handle here
     if ($Process.ExitCode -eq 0) {
-        $SuccessMessage = "Successfully uninstalled the app for all current users."
+        $SuccessMessage = "Successfully uninstalled the app <$($Arg2)> for all current users."
         Write-Host "     $($SuccessMessage)`n" -ForegroundColor Green
         AddToLog $SuccessMessage
     } elseif ($Process.ExitCode -eq 1) {
@@ -111,7 +111,7 @@ Function CheckForMoreThanOneApp ($InputAppName) {
 
         foreach ($App in $AppsArray) {
             $Counter += 1
-            Write-Host "     $($Counter). $($App)" -ForegroundColor Cyan
+            Write-Host "     $($App)" -ForegroundColor Cyan
         }
 
         AddToLog "There were more than one match for <$($InputAppName)>."
