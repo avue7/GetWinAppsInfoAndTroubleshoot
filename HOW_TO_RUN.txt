@@ -1,0 +1,8 @@
+Requirements:
+- APPXBUNDLES folder with all bundle files and dependency files must be in same directory.
+- Directory must be run on desktop or at users workstation and not from a file server. 
+
+How to run script:
+1. Double-Click the "Run_Me_First.bat" file. 
+2. Double-Click the "Run_Script.bat" file.
+3. Do what you need to in the interactive shell. 

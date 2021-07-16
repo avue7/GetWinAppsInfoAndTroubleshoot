@@ -1,0 +1,1 @@
+powershell -Command .\GetWindowsAppInfoAndTroubleShoot.ps1

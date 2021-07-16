@@ -1,0 +1,1 @@
+powershell -Command .\AllowScriptToRun.ps1
